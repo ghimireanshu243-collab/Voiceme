@@ -34,6 +34,7 @@ def create_account(request):
     email = data.get('email')
     password = data.get('password')
     name = data.get('name', '')
+    age = data.get('age')
 
     if not email or not password:
         return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -44,17 +45,25 @@ def create_account(request):
     user_doc = {
         'name': name,
         'email': email,
+        'age': age,
         'password': make_password(password),
         'created_at': datetime.datetime.utcnow()
     }
 
     result = users_collection.insert_one(user_doc)
     token = generate_token(result.inserted_id)
+    user_payload = {
+        'id': str(result.inserted_id),
+        'name': name,
+        'email': email,
+        'age': age,
+    }
 
     return Response({
         'message': 'Account created successfully!',
         'token': token,
-        'user_id': str(result.inserted_id)
+        'user_id': str(result.inserted_id),
+        'user': user_payload
     }, status=status.HTTP_201_CREATED)
 
 @api_view(['POST'])
@@ -74,7 +83,12 @@ def login_user(request):
     return Response({
         'message': 'Login successful!',
         'token': token,
-        'user': {'id': str(user['_id']), 'name': user.get('name'), 'email': user['email']}
+        'user': {
+            'id': str(user['_id']),
+            'name': user.get('name'),
+            'email': user['email'],
+            'age': user.get('age')
+        }
     }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
