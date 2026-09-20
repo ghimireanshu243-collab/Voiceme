@@ -11,20 +11,62 @@ import {
   Platform,
 } from "react-native";
 import { router } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const AUTH_TOKEN_KEY = 'voiceme.authToken';
+const AUTH_USER_KEY = 'voiceme.user';
+const REGISTERED_NAME_KEY = 'voiceme.registeredName';
+const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
+const API_BASE_URL = Platform.OS === 'android'
+  ? 'http://10.0.2.2:8000'
+  : 'http://localhost:8000';
+
+const persistAuthSession = async (token: string, user: { id?: string; name?: string; email?: string; age?: string | number }) => {
+  await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+  await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+
+  if (user?.name) {
+    await AsyncStorage.setItem(REGISTERED_NAME_KEY, String(user.name));
+  }
+  if (user?.age !== undefined && user?.age !== null && user?.age !== '') {
+    await AsyncStorage.setItem(REGISTERED_AGE_KEY, String(user.age));
+  }
+};
 
 export default function Loginpage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       alert("Please enter your email and password.");
       return;
     }
 
-    // Login successful → Home page
-    router.replace("/Homepage");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Login failed. Please check your credentials.');
+      }
+
+      await persistAuthSession(data.token, data.user || { email: email.trim() });
+      router.replace("/Homepage");
+    } catch (error: any) {
+      alert(error?.message || 'Unable to log in. Please try again.');
+    }
   };
 
   return (

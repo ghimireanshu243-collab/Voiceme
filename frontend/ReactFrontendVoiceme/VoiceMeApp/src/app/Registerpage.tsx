@@ -5,6 +5,7 @@ import {
     View,
     TextInput,
     TouchableOpacity,
+    Pressable,
     SafeAreaView,
     StatusBar,
     KeyboardAvoidingView,
@@ -17,6 +18,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const REGISTERED_NAME_KEY = 'voiceme.registeredName';
 const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
+const AUTH_TOKEN_KEY = 'voiceme.authToken';
+const AUTH_USER_KEY = 'voiceme.user';
+const API_BASE_URL = Platform.OS === 'android'
+    ? 'http://10.0.2.2:8000'
+    : 'http://localhost:8000';
+
+const persistAuthSession = async (token: string, user: { id?: string; name?: string; email?: string; age?: string | number }) => {
+    await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+
+    if (user?.name) {
+        await AsyncStorage.setItem(REGISTERED_NAME_KEY, String(user.name));
+    }
+    if (user?.age !== undefined && user?.age !== null && user?.age !== '') {
+        await AsyncStorage.setItem(REGISTERED_AGE_KEY, String(user.age));
+    }
+};
 
 export default function CreateAccountScreen() {
     const [name, setName] = useState('');
@@ -24,35 +42,77 @@ export default function CreateAccountScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleContinue = async () => {
+        console.log('Continue pressed');
+
         if (!name.trim()) {
+            console.log('Validation failed: missing name');
             Alert.alert('आवश्यक विवरण (Required)', 'कृपया आफ्नो नाम प्रविष्ट गर्नुहोस् (Please enter your name)');
             return;
         }
         if (!age.trim()) {
+            console.log('Validation failed: missing age');
             Alert.alert('उमेर आवश्यक छ (Age required)', 'कृपया आफ्नो उमेर प्रविष्ट गर्नुहोस् (Please enter your age)');
             return;
         }
         if (!email.trim() || !email.includes('@')) {
+            console.log('Validation failed: invalid email');
             Alert.alert('अमान्य इमेल (Invalid Email)', 'कृपया मान्य इमेल प्रविष्ट गर्नुहोस् (Please enter a valid email)');
             return;
         }
         if (!password || password.length < 6) {
+            console.log('Validation failed: weak password');
             Alert.alert('सुरक्षित पासवर्ड (Password)', 'पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ (Password must be at least 6 characters)');
             return;
         }
 
+        setIsSubmitting(true);
+
         try {
-            await AsyncStorage.setItem(REGISTERED_NAME_KEY, name.trim());
-            await AsyncStorage.setItem(REGISTERED_AGE_KEY, age.trim());
+            console.log('Sending registration request', {
+                name: name.trim(),
+                age: Number(age),
+                email: email.trim(),
+            });
+
+            const response = await fetch(`${API_BASE_URL}/api/create-account/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    age: Number(age),
+                    email: email.trim(),
+                    password,
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data?.error || 'Unable to create account right now.');
+            }
+
+            await persistAuthSession(data.token, data.user || {
+                id: data.user_id,
+                name: name.trim(),
+                email: email.trim(),
+                age: Number(age),
+            });
+
             Alert.alert(
                 'खाता सिर्जना (Success)',
-                `नमस्ते ${name.trim()}! तपाईँको खाता सफलतापूर्वक तयार हुँदैछ।`,
-                [{ text: 'OK', onPress: () => router.replace('/Loginpage') }]
+                `नमस्ते ${name.trim()}! तपाईँको खाता सफलतापूर्वक तयार भयो।`,
+                [{ text: 'OK', onPress: () => router.replace('/Homepage') }]
             );
-        } catch {
-            Alert.alert('Error', 'Unable to save your name. Please try again.');
+        } catch (error: any) {
+            console.error('Registration request failed:', error);
+            Alert.alert('Registration failed', error?.message || 'Please try again.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -181,14 +241,22 @@ export default function CreateAccountScreen() {
                         </View>
 
                         {/* Submit Button */}
-                        <TouchableOpacity
-                            style={styles.continueButton}
-                            onPress={handleContinue}
-                            activeOpacity={0.85}
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.continueButton,
+                                pressed && styles.continueButtonPressed,
+                                isSubmitting && styles.continueButtonDisabled,
+                            ]}
+                            onPress={() => {
+                                if (!isSubmitting) {
+                                    void handleContinue();
+                                }
+                            }}
+                            disabled={isSubmitting}
                         >
                             <Text style={styles.buttonTextNepali}>अघि बढ्नुहोस्</Text>
                             <Text style={styles.buttonTextEnglish}>Continue</Text>
-                        </TouchableOpacity>
+                        </Pressable>
 
                         {/* Footer: Already have an account? Login */}
                         <TouchableOpacity
@@ -346,6 +414,13 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.16,
         shadowRadius: 5,
         elevation: 3,
+    },
+    continueButtonPressed: {
+        opacity: 0.9,
+        transform: [{ scale: 0.99 }],
+    },
+    continueButtonDisabled: {
+        opacity: 0.7,
     },
     buttonTextNepali: {
         color: '#FFFFFF',
