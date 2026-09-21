@@ -233,6 +233,9 @@ export default function App() {
   const playRequestId = useRef(0);
   const lastPlaybackRef = useRef<{ requestId: number; card: Flashcard; lang: Language } | null>(null);
   const isPlayingRef = useRef(false);
+  // Cards that have already had their one-time Nepali -> English intro. After
+  // that, a tap plays exactly the language tapped and nothing else chains.
+  const introPlayedRef = useRef<Set<string>>(new Set());
 
   // Backend-generated speech for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
@@ -272,10 +275,17 @@ export default function App() {
     isPlayingRef.current = false;
     setSpeakingLanguage(null);
 
-    // Chain straight into English right after Nepali finishes. Deliberately
-    // one-directional (never English -> Nepali) so it can't loop.
+    // Chain straight into English right after Nepali finishes, but only the
+    // very first time a given card is played. After that one-time intro,
+    // each card is its own thing: a tap plays only the language tapped.
     const finished = lastPlaybackRef.current;
-    if (finished && finished.requestId === playRequestId.current && finished.lang === 'ne') {
+    if (
+      finished &&
+      finished.requestId === playRequestId.current &&
+      finished.lang === 'ne' &&
+      !introPlayedRef.current.has(finished.card.id)
+    ) {
+      introPlayedRef.current.add(finished.card.id);
       speakCard(finished.card, 'en');
     }
   }, [playerStatus.didJustFinish]);
