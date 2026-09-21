@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,12 +11,16 @@ import {
   Platform,
 } from 'react-native';
 import Svg, { Path, Rect, Circle, Ellipse } from 'react-native-svg';
-import * as Speech from 'expo-speech';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 32 - 12) / 2; // 2 columns with 16px screen padding and 12px gap
+
+const API_BASE_URL = Platform.OS === 'android'
+  ? 'http://10.0.2.2:8000'
+  : 'http://localhost:8000';
 
 type Language = 'ne' | 'en';
 
@@ -102,52 +106,82 @@ const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ typ
     case 'food':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Ellipse cx={50} cy={54} rx={38} ry={12} stroke={accentColor} strokeWidth={3} fill="#FFFDF8" />
-          <Path d="M20 52 C20 30, 80 30, 80 52 Z" fill="#FFFDF8" stroke={accentColor} strokeWidth={3} />
-          <Ellipse cx={50} cy={33} rx={7} ry={4} fill="#84A98C" stroke={accentColor} strokeWidth={2} />
+          {/* Steam */}
+          <Path d="M40 20 C36 16, 40 12, 37 8" stroke={accentColor} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.5} />
+          <Path d="M52 18 C48 14, 52 10, 49 6" stroke={accentColor} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.5} />
+          {/* Bowl */}
+          <Ellipse cx={50} cy={52} rx={34} ry={13} stroke={accentColor} strokeWidth={3} fill="#FFFDF8" />
+          <Path d="M18 48 C18 32, 82 32, 82 48 L78 54 C78 40, 22 40, 22 54 Z" fill="#FFFDF8" stroke={accentColor} strokeWidth={3} strokeLinejoin="round" />
+          {/* Rice/curry mound */}
+          <Ellipse cx={50} cy={41} rx={22} ry={9} fill="#EDD9A3" stroke={accentColor} strokeWidth={1.5} />
+          <Circle cx={42} cy={39} r={3.2} fill="#C0472B" />
+          <Circle cx={56} cy={38} r={2.6} fill="#588157" />
+          {/* Spoon resting on the rim */}
+          <Ellipse cx={76} cy={44} rx={4} ry={6} fill="#DCD3C0" stroke={accentColor} strokeWidth={1.5} transform="rotate(20 76 44)" />
+          <Rect x={75} y={48} width={3} height={14} rx={1.5} fill="#DCD3C0" stroke={accentColor} strokeWidth={1} transform="rotate(20 76 44)" />
         </Svg>
       );
     case 'water':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Rect x={24} y={18} width={22} height={46} rx={3} stroke={accentColor} strokeWidth={3} fill="#F4FAF0" />
-          <Rect x={27} y={32} width={16} height={29} rx={2} fill="#B9DBBA" opacity={0.75} />
-          <Ellipse cx={66} cy={30} rx={6} ry={10} fill="#588157" />
-          <Ellipse cx={70} cy={52} rx={15} ry={14} fill="#C5D3C1" opacity={0.6} />
+          {/* Glass */}
+          <Path d="M30 14 L46 66 L60 66 L74 14 Z" fill="#F4FAF0" stroke={accentColor} strokeWidth={3} strokeLinejoin="round" />
+          {/* Water fill */}
+          <Path d="M35 32 L46 63 L60 63 L69 32 Z" fill="#8FC7E8" opacity={0.85} />
+          {/* Surface ripple */}
+          <Path d="M36 32 C42 29, 48 35, 54 32 C60 29, 64 33, 68 32" stroke="#FFFFFF" strokeWidth={1.6} fill="none" opacity={0.8} />
+          {/* Droplet beside the glass */}
+          <Path d="M22 24 C22 30, 15 32, 15 38 C15 42.5, 18.5 45, 22 45 C25.5 45, 29 42.5, 29 38 C29 32, 22 30, 22 24 Z" fill="#5B9BD5" stroke={accentColor} strokeWidth={1.5} />
+          <Ellipse cx={19.5} cy={37} rx={2} ry={3} fill="#FFFFFF" opacity={0.55} />
         </Svg>
       );
     case 'toilet':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Rect x={36} y={16} width={28} height={26} rx={5} fill="#F4EFE6" stroke="#635B4F" strokeWidth={2.5} />
-          <Ellipse cx={50} cy={52} rx={24} ry={11} fill="#FFFDF9" stroke="#3F584C" strokeWidth={3} />
-          <Ellipse cx={50} cy={52} rx={18} ry={7} fill="#C2D8CA" opacity={0.5} />
+          <Rect x={36} y={12} width={28} height={22} rx={5} fill="#F4EFE6" stroke="#635B4F" strokeWidth={2.5} />
+          <Rect x={58} y={17} width={7} height={5} rx={2} fill="#635B4F" />
+          <Rect x={46} y={34} width={8} height={10} fill="#F4EFE6" stroke="#635B4F" strokeWidth={2} />
+          <Ellipse cx={50} cy={54} rx={26} ry={12} fill="#FFFDF9" stroke="#3F584C" strokeWidth={3} />
+          <Ellipse cx={50} cy={53} rx={19} ry={7.5} fill="none" stroke="#3F584C" strokeWidth={2} opacity={0.55} />
         </Svg>
       );
     case 'help':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Rect x={40} y={36} width={24} height={26} rx={8} fill={accentColor} />
-          <Rect x={43} y={14} width={8} height={26} rx={4} fill={accentColor} />
-          <Rect x={53} y={16} width={8} height={24} rx={4} fill={accentColor} />
-          <Ellipse cx={39} cy={46} rx={5} ry={7} fill={accentColor} />
+          {/* Raised open hand */}
+          <Rect x={38} y={40} width={22} height={24} rx={10} fill={accentColor} />
+          <Rect x={30} y={38} width={9} height={20} rx={4.5} fill={accentColor} transform="rotate(-18 34.5 48)" />
+          <Rect x={36} y={16} width={8} height={28} rx={4} fill={accentColor} />
+          <Rect x={45} y={12} width={8} height={32} rx={4} fill={accentColor} />
+          <Rect x={54} y={14} width={8} height={30} rx={4} fill={accentColor} />
+          <Rect x={63} y={20} width={8} height={26} rx={4} fill={accentColor} />
+          {/* Small heart to signal "asking for help/support" */}
+          <Path d="M50 62 C47 58, 40 58, 40 64 C40 69, 50 74, 50 74 C50 74, 60 69, 60 64 C60 58, 53 58, 50 62 Z" fill="#FFFDF8" stroke={accentColor} strokeWidth={2} />
         </Svg>
       );
     case 'brush':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Rect x={36} y={20} width={18} height={14} rx={4} fill="#F5E8C8" stroke="#D6C49D" strokeWidth={2} transform="rotate(35 45 27)" />
-          <Rect x={35} y={26} width={9} height={46} rx={4.5} fill={accentColor} transform="rotate(-40 39 49)" />
-          <Circle cx={34} cy={22} r={4} fill="#E8F4E5" opacity={0.9} />
+          {/* Handle */}
+          <Rect x={35} y={26} width={10} height={48} rx={5} fill={accentColor} transform="rotate(-38 40 50)" />
+          {/* Brush head */}
+          <Rect x={30} y={12} width={24} height={16} rx={5} fill="#F5E8C8" stroke="#D6C49D" strokeWidth={2} transform="rotate(-38 42 20)" />
+          {/* Bristle lines */}
+          <Path d="M26 14 L21 8 M33 10 L29 3 M40 8 L38 1" stroke="#B79F72" strokeWidth={1.8} strokeLinecap="round" transform="rotate(-38 42 20) translate(0 0)" />
+          {/* Toothpaste squiggle */}
+          <Path d="M62 20 C66 18, 66 24, 70 22 C73 20.5, 74 24, 77 23" stroke="#7FB6E0" strokeWidth={3} strokeLinecap="round" fill="none" />
         </Svg>
       );
     case 'play':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Circle cx={54} cy={36} r={22} fill="#FFFDF8" stroke="#4A3B32" strokeWidth={2.5} />
-          <Circle cx={54} cy={36} r={7} fill="#3D4543" />
-          <Rect x={24} y={42} width={14} height={14} rx={3} fill={accentColor} />
-          <Rect x={64} y={44} width={13} height={13} rx={3} fill={accentColor} />
+          {/* Ball */}
+          <Circle cx={30} cy={30} r={15} fill="#FFFDF8" stroke={accentColor} strokeWidth={2.5} />
+          <Path d="M20 24 C26 30, 34 30, 40 24 M30 15 L30 45 M22 34 C26 30, 34 30, 38 34" stroke={accentColor} strokeWidth={1.6} fill="none" opacity={0.7} />
+          {/* Building blocks */}
+          <Rect x={48} y={38} width={16} height={16} rx={3} fill={accentColor} transform="rotate(-6 56 46)" />
+          <Rect x={64} y={44} width={16} height={16} rx={3} fill="#E8B84B" transform="rotate(8 72 52)" />
+          <Rect x={54} y={22} width={14} height={14} rx={3} fill="#7FA6E0" transform="rotate(12 61 29)" />
         </Svg>
       );
     case 'medicine':
@@ -189,30 +223,72 @@ export default function App() {
   const [selectedCard, setSelectedCard] = useState<Flashcard>(FLASHCARDS[0]); // Default to Food / खाना
   const [speakingLanguage, setSpeakingLanguage] = useState<Language | null>(null);
 
-  // Speech function for either Nepali or English
+  // A single player instance is reused for every card/language. While it's
+  // actively playing, isPlayingRef blocks every new tap outright — taps
+  // can't interrupt, restart, or otherwise hamper audio that's already
+  // playing, no matter how many times or how fast they land. Once playback
+  // genuinely finishes, the block lifts and the next tap starts clean.
+  const player = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(player);
+  const playRequestId = useRef(0);
+  const lastPlaybackRef = useRef<{ requestId: number; card: Flashcard; lang: Language } | null>(null);
+  const isPlayingRef = useRef(false);
+  // Cards that have already had their one-time Nepali -> English intro. After
+  // that, a tap plays exactly the language tapped and nothing else chains.
+  const introPlayedRef = useRef<Set<string>>(new Set());
+
+  // Backend-generated speech for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
+    if (isPlayingRef.current) {
+      // Already playing something — ignore the tap rather than disturb it.
+      return;
+    }
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
 
+    const thisRequest = ++playRequestId.current;
+    isPlayingRef.current = true;
     setSpeakingLanguage(targetLang);
-    const speechText = targetLang === 'ne' ? card.wordNe : card.wordEn;
-    const speechLang = targetLang === 'ne' ? 'ne-NP' : 'en-US';
 
     try {
-      await Speech.stop();
-      Speech.speak(speechText, {
-        language: speechLang,
-        pitch: 1.0,
-        rate: 0.95,
-        onDone: () => setSpeakingLanguage(null),
-        onError: () => setSpeakingLanguage(null),
-      });
+      player.pause();
+      player.replace(`${API_BASE_URL}/api/tts/flashcard/${card.id}/${targetLang}/`);
+
+      // Force a restart even when it's the exact same source as last time
+      // (same card, same language tapped again after finishing) so it
+      // always replays from the beginning instead of silently no-op'ing.
+      await player.seekTo(0);
+      lastPlaybackRef.current = { requestId: thisRequest, card, lang: targetLang };
+      player.play();
     } catch (e) {
       console.warn(e);
+      isPlayingRef.current = false;
       setSpeakingLanguage(null);
     }
   };
+
+  useEffect(() => {
+    if (!playerStatus.didJustFinish) return;
+
+    isPlayingRef.current = false;
+    setSpeakingLanguage(null);
+
+    // Chain straight into English right after Nepali finishes, but only the
+    // very first time a given card is played. After that one-time intro,
+    // each card is its own thing: a tap plays only the language tapped.
+    const finished = lastPlaybackRef.current;
+    if (
+      finished &&
+      finished.requestId === playRequestId.current &&
+      finished.lang === 'ne' &&
+      !introPlayedRef.current.has(finished.card.id)
+    ) {
+      introPlayedRef.current.add(finished.card.id);
+      speakCard(finished.card, 'en');
+    }
+  }, [playerStatus.didJustFinish]);
 
   // When a card box is clicked
   const handleCardPress = (card: Flashcard) => {
