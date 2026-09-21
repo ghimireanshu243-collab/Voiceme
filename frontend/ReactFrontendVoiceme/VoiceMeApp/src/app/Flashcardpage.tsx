@@ -223,50 +223,56 @@ export default function App() {
   const [selectedCard, setSelectedCard] = useState<Flashcard>(FLASHCARDS[0]); // Default to Food / खाना
   const [speakingLanguage, setSpeakingLanguage] = useState<Language | null>(null);
 
-  // A single player instance is reused for every card/language: replace()
-  // swaps the source and interrupts whatever was playing before, so rapid
-  // repeated taps can't pile up or glitch out like the old TTS engine did.
+  // A single player instance is reused for every card/language. While it's
+  // actively playing, isPlayingRef blocks every new tap outright — taps
+  // can't interrupt, restart, or otherwise hamper audio that's already
+  // playing, no matter how many times or how fast they land. Once playback
+  // genuinely finishes, the block lifts and the next tap starts clean.
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
   const playRequestId = useRef(0);
   const lastPlaybackRef = useRef<{ requestId: number; card: Flashcard; lang: Language } | null>(null);
+  const isPlayingRef = useRef(false);
 
   // Backend-generated speech for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
+    if (isPlayingRef.current) {
+      // Already playing something — ignore the tap rather than disturb it.
+      return;
+    }
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
 
     const thisRequest = ++playRequestId.current;
+    isPlayingRef.current = true;
     setSpeakingLanguage(targetLang);
 
     try {
       player.pause();
       player.replace(`${API_BASE_URL}/api/tts/flashcard/${card.id}/${targetLang}/`);
 
-      // A newer tap landed while this one was still being set up; let that
-      // one own the player instead of stepping on it.
-      if (thisRequest !== playRequestId.current) return;
-
       // Force a restart even when it's the exact same source as last time
-      // (same card, same language tapped again) so repeat taps always
-      // replay instead of silently no-op'ing.
+      // (same card, same language tapped again after finishing) so it
+      // always replays from the beginning instead of silently no-op'ing.
       await player.seekTo(0);
       lastPlaybackRef.current = { requestId: thisRequest, card, lang: targetLang };
       player.play();
     } catch (e) {
       console.warn(e);
-      if (thisRequest === playRequestId.current) setSpeakingLanguage(null);
+      isPlayingRef.current = false;
+      setSpeakingLanguage(null);
     }
   };
 
   useEffect(() => {
     if (!playerStatus.didJustFinish) return;
 
+    isPlayingRef.current = false;
     setSpeakingLanguage(null);
 
-    // Chain straight into English right after Nepali finishes, as long as no
-    // newer tap has taken over the player in the meantime. Deliberately
+    // Chain straight into English right after Nepali finishes. Deliberately
     // one-directional (never English -> Nepali) so it can't loop.
     const finished = lastPlaybackRef.current;
     if (finished && finished.requestId === playRequestId.current && finished.lang === 'ne') {
