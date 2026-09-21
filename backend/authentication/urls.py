@@ -6,7 +6,6 @@ from .views import (
     reset_password,
     get_profile,
     voice_notes_list,
-    flashcard_audio,
 )
 
 urlpatterns = [
@@ -16,5 +15,4 @@ urlpatterns = [
     path('reset-password/<str:token>/', reset_password, name='reset-password'),
     path('profile/', get_profile, name='profile'),
     path('notes/', voice_notes_list, name='voice-notes'),
-    path('tts/flashcard/<str:card_id>/<str:lang>/', flashcard_audio, name='flashcard-audio'),
 ]
