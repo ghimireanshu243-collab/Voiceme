@@ -10,10 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -125,10 +130,29 @@ STATIC_URL = 'static/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Real emails go out once EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set in
+# backend/.env. Without them, we fall back to the console backend, which just
+# prints the message (reset link included) to the `manage.py runserver` terminal.
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = os.getenv(
+    'DEFAULT_FROM_EMAIL',
+    EMAIL_HOST_USER or 'Voice Me <no-reply@voiceme.local>'
+)
+
+# Host the emailed reset link should point at. Leave blank for local development
+# (the link is then built from the incoming request); set it to a reachable
+# address, e.g. http://192.168.1.5:8000, when testing from a real phone, since a
+# link to localhost or 10.0.2.2 means nothing inside an email client.
+PASSWORD_RESET_BASE_URL = os.getenv('PASSWORD_RESET_BASE_URL', '')
 
 CORS_ALLOW_ALL_ORIGINS = True

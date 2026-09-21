@@ -23,10 +23,15 @@ db = client['voiceme_db']
 # Collections
 users_collection = db['users']
 notes_collection = db['voice_notes']
+password_resets_collection = db['password_resets']
 
 # Enforce Unique Email Constraint directly in MongoDB
 try:
     users_collection.create_index([("email", ASCENDING)], unique=True)
+    # Only one live reset link per email, cleaned up by MongoDB once it expires.
+    password_resets_collection.create_index([("email", ASCENDING)], unique=True)
+    password_resets_collection.create_index([("token_hash", ASCENDING)], unique=True)
+    password_resets_collection.create_index("expires_at", expireAfterSeconds=0)
 except PyMongoError:
     # The server may not be running yet; the app should still boot for local development.
     pass

@@ -156,9 +156,7 @@ export default function Loginpage() {
             {/* FORGOT PASSWORD */}
             <Pressable
               style={styles.forgotContainer}
-              onPress={() =>
-                alert("Forgot password feature coming soon.")
-              }
+              onPress={() => router.push("/Forgotpasswordpage")}
             >
               <Text style={styles.forgotNepali}>पासवर्ड बिर्सनुभयो?</Text>
               <Text style={styles.forgotEnglish}>Forgot Password?</Text>
