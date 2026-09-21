@@ -103,11 +103,7 @@ export default function CreateAccountScreen() {
                 age: Number(age),
             });
 
-            Alert.alert(
-                'खाता सिर्जना (Success)',
-                `नमस्ते ${name.trim()}! तपाईँको खाता सफलतापूर्वक तयार भयो।`,
-                [{ text: 'OK', onPress: () => router.replace('/Homepage') }]
-            );
+            router.replace('/Homepage');
         } catch (error: any) {
             console.error('Registration request failed:', error);
             Alert.alert('Registration failed', error?.message || 'Please try again.');
