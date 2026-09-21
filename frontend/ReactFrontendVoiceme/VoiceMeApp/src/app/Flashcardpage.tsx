@@ -229,12 +229,7 @@ export default function App() {
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
   const playRequestId = useRef(0);
-
-  useEffect(() => {
-    if (playerStatus.didJustFinish) {
-      setSpeakingLanguage(null);
-    }
-  }, [playerStatus.didJustFinish]);
+  const lastPlaybackRef = useRef<{ requestId: number; card: Flashcard; lang: Language } | null>(null);
 
   // Backend-generated speech for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
@@ -253,13 +248,31 @@ export default function App() {
       // one own the player instead of stepping on it.
       if (thisRequest !== playRequestId.current) return;
 
+      // Force a restart even when it's the exact same source as last time
+      // (same card, same language tapped again) so repeat taps always
+      // replay instead of silently no-op'ing.
       await player.seekTo(0);
+      lastPlaybackRef.current = { requestId: thisRequest, card, lang: targetLang };
       player.play();
     } catch (e) {
       console.warn(e);
       if (thisRequest === playRequestId.current) setSpeakingLanguage(null);
     }
   };
+
+  useEffect(() => {
+    if (!playerStatus.didJustFinish) return;
+
+    setSpeakingLanguage(null);
+
+    // Chain straight into English right after Nepali finishes, as long as no
+    // newer tap has taken over the player in the meantime. Deliberately
+    // one-directional (never English -> Nepali) so it can't loop.
+    const finished = lastPlaybackRef.current;
+    if (finished && finished.requestId === playRequestId.current && finished.lang === 'ne') {
+      speakCard(finished.card, 'en');
+    }
+  }, [playerStatus.didJustFinish]);
 
   // When a card box is clicked
   const handleCardPress = (card: Flashcard) => {
