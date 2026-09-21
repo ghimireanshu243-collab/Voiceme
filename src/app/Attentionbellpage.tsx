@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BELL_SOUND_URI = 'https://actions.google.com/sounds/v1/alarms/medium_bell_ringing_near.ogg';
 
@@ -24,6 +25,11 @@ interface AttentionBellScreenProps {
 export default function AttentionBellScreen({ onBack }: AttentionBellScreenProps) {
     const [isRinging, setIsRinging] = useState(true);
     const bellSound = useAudioPlayer(BELL_SOUND_URI);
+
+    // Sync bell state with AsyncStorage so Caregiver/Parent pages see the alert
+    useEffect(() => {
+        AsyncStorage.setItem('voiceme.bellActive', isRinging ? 'true' : 'false').catch(() => {});
+    }, [isRinging]);
 
     // Play Nepali attention prompt and trigger haptic loop while ringing
     useEffect(() => {
@@ -63,6 +69,8 @@ export default function AttentionBellScreen({ onBack }: AttentionBellScreenProps
             try {
                 Speech.stop();
             } catch { }
+            // Reset active bell when leaving screen
+            AsyncStorage.setItem('voiceme.bellActive', 'false').catch(() => {});
         };
     }, [isRinging]);
 

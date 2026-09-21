@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,16 +7,13 @@ import {
   StatusBar,
   ScrollView,
   Pressable,
-  Dimensions,
+  useWindowDimensions,
   Platform,
 } from 'react-native';
 import Svg, { Path, Rect, Circle, Ellipse } from 'react-native-svg';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 32 - 12) / 2; // 2 columns with 16px screen padding and 12px gap
 
 type Language = 'ne' | 'en';
 
@@ -27,7 +24,7 @@ interface Flashcard {
   wordEn: string;
   bgColor: string;
   accentColor: string;
-  illustrationType: 'food' | 'water' | 'toilet' | 'help' | 'brush' | 'play' | 'medicine';
+  illustrationType: 'food' | 'water' | 'toilet' | 'help' | 'brush' | 'play' | 'medicine' | 'sleep';
 }
 
 const FLASHCARDS: Flashcard[] = [
@@ -94,9 +91,18 @@ const FLASHCARDS: Flashcard[] = [
     accentColor: '#B33928',
     illustrationType: 'medicine',
   },
+  {
+    id: 'sleep',
+    wordNe: 'निन्द्रा',
+    transliterationNe: 'Nindra',
+    wordEn: 'Sleep',
+    bgColor: '#E5E8F5', // Soft periwinkle lavender
+    accentColor: '#3D4D73',
+    illustrationType: 'sleep',
+  },
 ];
 
-// Vector SVG Illustrations matching screenshot aesthetic
+// Vector SVG Illustrations matching cozy hand-crafted aesthetic
 const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ type, accentColor }) => {
   switch (type) {
     case 'food':
@@ -136,8 +142,26 @@ const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ typ
     case 'brush':
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
-          <Rect x={36} y={20} width={18} height={14} rx={4} fill="#F5E8C8" stroke="#D6C49D" strokeWidth={2} transform="rotate(35 45 27)" />
-          <Rect x={35} y={26} width={9} height={46} rx={4.5} fill={accentColor} transform="rotate(-40 39 49)" />
+          <Rect
+            x={36}
+            y={20}
+            width={18}
+            height={14}
+            rx={4}
+            fill="#F5E8C8"
+            stroke="#D6C49D"
+            strokeWidth={2}
+            transform="rotate(35 45 27)"
+          />
+          <Rect
+            x={35}
+            y={26}
+            width={9}
+            height={46}
+            rx={4.5}
+            fill={accentColor}
+            transform="rotate(-40 39 49)"
+          />
           <Circle cx={34} cy={22} r={4} fill="#E8F4E5" opacity={0.9} />
         </Svg>
       );
@@ -175,6 +199,22 @@ const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ typ
           <Rect x={43} y={31} width={14} height={6} rx={2} fill="#E56B55" />
         </Svg>
       );
+    case 'sleep':
+      return (
+        <Svg width={74} height={56} viewBox="0 0 100 80">
+          {/* Crescent Moon */}
+          <Path
+            d="M52 18 C38 18, 28 28, 28 42 C28 56, 38 66, 52 66 C44 60, 42 46, 48 34 C51 28, 56 22, 64 20 C60 19, 56 18, 52 18 Z"
+            fill="#D5DEFA"
+            stroke={accentColor}
+            strokeWidth={2.5}
+          />
+          {/* Stars */}
+          <Circle cx={70} cy={28} r={3} fill={accentColor} />
+          <Circle cx={76} cy={44} r={2} fill={accentColor} />
+          <Circle cx={64} cy={54} r={2.5} fill={accentColor} />
+        </Svg>
+      );
     default:
       return (
         <Svg width={74} height={56} viewBox="0 0 100 80">
@@ -184,20 +224,34 @@ const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ typ
   }
 };
 
-export default function App() {
+export default function Flashcardpage() {
+  const { width } = useWindowDimensions();
+  // Responsive card width calculation (2-column layout with 16px horizontal margins and 12px gap)
+  const cardWidth = Math.floor((width - 32 - 12) / 2);
+
   const [lang, setLang] = useState<Language>('ne');
   const [selectedCard, setSelectedCard] = useState<Flashcard>(FLASHCARDS[0]); // Default to Food / खाना
   const [speakingLanguage, setSpeakingLanguage] = useState<Language | null>(null);
+  const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Speech function for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {}
+    } catch { }
 
     setSpeakingLanguage(targetLang);
     const speechText = targetLang === 'ne' ? card.wordNe : card.wordEn;
     const speechLang = targetLang === 'ne' ? 'ne-NP' : 'en-US';
+
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+    }
+
+    // Safety timeout in case TTS engine does not fire onDone callback
+    speechTimerRef.current = setTimeout(() => {
+      setSpeakingLanguage((curr) => (curr === targetLang ? null : curr));
+    }, 2500);
 
     try {
       await Speech.stop();
@@ -205,16 +259,23 @@ export default function App() {
         language: speechLang,
         pitch: 1.0,
         rate: 0.95,
-        onDone: () => setSpeakingLanguage(null),
-        onError: () => setSpeakingLanguage(null),
+        onDone: () => {
+          if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+          setSpeakingLanguage(null);
+        },
+        onError: () => {
+          if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+          setSpeakingLanguage(null);
+        },
       });
     } catch (e) {
-      console.warn(e);
+      console.warn('Speech error:', e);
+      if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
       setSpeakingLanguage(null);
     }
   };
 
-  // When a card box is clicked
+  // When a card is clicked
   const handleCardPress = (card: Flashcard) => {
     setSelectedCard(card);
     speakCard(card, lang); // Speaks in current active language
@@ -231,10 +292,16 @@ export default function App() {
       {/* Top Header */}
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel="Return to home"
+          accessibilityLabel="Return to previous screen"
           accessibilityRole="button"
-          onPress={() => router.back()}
-          style={styles.backButton}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/Homepage');
+            }
+          }}
+          style={({ pressed }) => [styles.backButton, pressed && styles.buttonPressed]}
         >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
             <Path
@@ -246,11 +313,14 @@ export default function App() {
             />
           </Svg>
         </Pressable>
-        <View>
+
+        <View style={styles.headerTitleContainer}>
           <Text style={styles.title}>
             {lang === 'ne' ? 'फ्लैशकार्ड' : 'Flashcards'}
           </Text>
-          <Text style={styles.subtitle}>tap a card to hear it</Text>
+          <Text style={styles.subtitle}>
+            {lang === 'ne' ? 'सुन्नको लागि कार्ड थिच्नुहोस्' : 'Tap a card to hear it'}
+          </Text>
         </View>
 
         {/* Bilingual Switcher (ने / EN) */}
@@ -258,7 +328,7 @@ export default function App() {
           <Pressable
             onPress={() => {
               setLang('ne');
-              try { Haptics.selectionAsync(); } catch {}
+              try { Haptics.selectionAsync(); } catch { }
             }}
             style={[styles.toggleBtn, lang === 'ne' && styles.toggleBtnActive]}
           >
@@ -270,7 +340,7 @@ export default function App() {
           <Pressable
             onPress={() => {
               setLang('en');
-              try { Haptics.selectionAsync(); } catch {}
+              try { Haptics.selectionAsync(); } catch { }
             }}
             style={[styles.toggleBtn, lang === 'en' && styles.toggleBtnActive]}
           >
@@ -282,7 +352,11 @@ export default function App() {
       </View>
 
       {/* 2-Column Scrollable Grid */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.grid}>
           {FLASHCARDS.map((card) => {
             const isSelected = selectedCard.id === card.id;
@@ -292,13 +366,14 @@ export default function App() {
               <Pressable
                 key={card.id}
                 onPress={() => handleCardPress(card)}
-                style={[
+                style={({ pressed }) => [
                   styles.card,
-                  { backgroundColor: card.bgColor },
+                  { width: cardWidth, backgroundColor: card.bgColor },
                   isSelected && styles.cardSelected,
+                  pressed && styles.cardPressed,
                 ]}
               >
-                {/* Background ambient circles */}
+                {/* Background ambient decorative shapes */}
                 <View style={[styles.blob, styles.blobTopLeft]} />
                 <View style={[styles.blob, styles.blobBottomRight]} />
 
@@ -309,10 +384,10 @@ export default function App() {
 
                 {/* Card labels */}
                 <View style={styles.labelWrapper}>
-                  <Text style={styles.primaryWord}>
+                  <Text style={styles.primaryWord} numberOfLines={1}>
                     {lang === 'ne' ? card.wordNe : card.wordEn}
                   </Text>
-                  <Text style={styles.secondaryWord}>
+                  <Text style={styles.secondaryWord} numberOfLines={1}>
                     {lang === 'ne' ? card.wordEn : card.transliterationNe}
                   </Text>
                 </View>
@@ -322,15 +397,15 @@ export default function App() {
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                     <Path
                       d="M11 5L6 9H2V15H6L11 19V5Z"
-                      stroke={isSpeakingThisCard ? '#536E50' : '#4E3E33'}
+                      stroke={isSpeakingThisCard ? '#FFFFFF' : '#4E3E33'}
                       strokeWidth={2}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      fill={isSpeakingThisCard ? '#536E50' : 'none'}
+                      fill={isSpeakingThisCard ? '#FFFFFF' : 'none'}
                     />
                     <Path
                       d="M15.54 8.46C16.48 9.4 17 10.68 17 12C17 13.32 16.48 14.6 15.54 15.54"
-                      stroke={isSpeakingThisCard ? '#536E50' : '#4E3E33'}
+                      stroke={isSpeakingThisCard ? '#FFFFFF' : '#4E3E33'}
                       strokeWidth={2}
                       strokeLinecap="round"
                     />
@@ -353,7 +428,9 @@ export default function App() {
                 {selectedCard.wordEn} · {selectedCard.wordNe}
               </Text>
             </View>
-            <Text style={styles.tapPromptText}>Tap word to speak:</Text>
+            <Text style={styles.tapPromptText}>
+              {lang === 'ne' ? 'सुन्न थिच्नुहोस्:' : 'Tap word to speak:'}
+            </Text>
           </View>
 
           {/* Dual Language Buttons */}
@@ -464,8 +541,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 14,
@@ -477,18 +553,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAE2D5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
+  },
+  headerTitleContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: '#342419',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 13.5,
+    fontSize: 12.5,
     color: '#76675B',
     marginTop: 2,
+    fontWeight: '500',
   },
   togglePill: {
     flexDirection: 'row',
@@ -513,8 +593,12 @@ const styles = StyleSheet.create({
   toggleBtnTextActive: {
     color: '#FFFFFF',
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 16,
   },
   grid: {
@@ -524,19 +608,18 @@ const styles = StyleSheet.create({
     rowGap: 14,
   },
   card: {
-    width: CARD_WIDTH,
     height: 172,
     borderRadius: 26,
     padding: 14,
     justifyContent: 'space-between',
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.04)',
+    borderWidth: 2,
+    borderColor: 'transparent',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1.5 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 5,
       },
@@ -547,8 +630,11 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: '#536E50',
-    borderWidth: 2.5,
     transform: [{ scale: 0.99 }],
+  },
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
   },
   blob: {
     position: 'absolute',
@@ -576,7 +662,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   primaryWord: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: '800',
     color: '#342419',
     letterSpacing: -0.3,
@@ -591,19 +677,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     right: 12,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   speakerBadgeActive: {
-    backgroundColor: 'rgba(83, 110, 80, 0.2)',
+    backgroundColor: '#536E50',
   },
   bottomBar: {
     paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 16,
     paddingTop: 8,
     backgroundColor: '#F4EFE6',
     borderTopWidth: 1,

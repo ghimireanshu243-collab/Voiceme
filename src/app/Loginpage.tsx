@@ -18,9 +18,10 @@ export default function Loginpage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
-      alert("Please enter your email and password.");
-      return;
+    // Seamless login: if fields are empty, auto-fill defaults and proceed to Homepage
+    if (!email.trim() && !password.trim()) {
+      setEmail("aarav@voiceme.np");
+      setPassword("voiceme123");
     }
 
     // Login successful → Home page
