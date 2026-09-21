@@ -110,7 +110,7 @@ export default function CreateAccountScreen() {
                 age: Number(age),
             });
 
-            router.replace('/Homepage');
+            router.replace('/RoleSelectionpage');
         } catch (error: any) {
             console.error('Registration request failed:', error);
             setFormError('Unable to reach the server. Please check your connection and try again.');

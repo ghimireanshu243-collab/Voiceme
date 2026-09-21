@@ -1,15 +1,23 @@
 import React, { useEffect } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const AUTH_TOKEN_KEY = 'voiceme.authToken';
+
+async function goToNextScreen() {
+  const authToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+  router.replace(authToken ? '/Homepage' : '/Registerpage');
+}
 
 export default function Splashpage() {
   const handlePress = () => {
-    router.replace('/Loginpage');
+    goToNextScreen();
   };
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace('/Loginpage');
+      goToNextScreen();
     }, 2200);
 
     return () => clearTimeout(timer);
