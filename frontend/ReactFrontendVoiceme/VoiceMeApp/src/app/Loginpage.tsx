@@ -37,13 +37,26 @@ export default function Loginpage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      alert("Please enter your email and password.");
+    setFormError('');
+
+    const errors: typeof fieldErrors = {};
+    if (!email.trim()) {
+      errors.email = 'कृपया आफ्नो इमेल प्रविष्ट गर्नुहोस् (Please enter your email)';
+    }
+    if (!password.trim()) {
+      errors.password = 'कृपया आफ्नो पासवर्ड प्रविष्ट गर्नुहोस् (Please enter your password)';
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/login/`, {
         method: 'POST',
@@ -59,13 +72,17 @@ export default function Loginpage() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Login failed. Please check your credentials.');
+        setFormError(data?.error || 'Login failed. Please check your credentials.');
+        return;
       }
 
       await persistAuthSession(data.token, data.user || { email: email.trim() });
       router.replace("/Homepage");
     } catch (error: any) {
-      alert(error?.message || 'Unable to log in. Please try again.');
+      console.error('Login request failed:', error);
+      setFormError('Unable to reach the server. Please check your connection and try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -116,28 +133,35 @@ export default function Loginpage() {
             <View style={styles.formContainer}>
               {/* EMAIL */}
               <Text style={styles.fieldLabel}>इमेल</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, fieldErrors.email && styles.inputContainerError]}>
                 <TextInput
                   style={styles.input}
                   placeholder="Email"
                   placeholderTextColor="#443F32"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
               </View>
+              {fieldErrors.email ? <Text style={styles.fieldErrorText}>{fieldErrors.email}</Text> : null}
 
               {/* PASSWORD */}
               <Text style={styles.fieldLabel}>पासवर्ड</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, fieldErrors.password && styles.inputContainerError]}>
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
                   placeholderTextColor="#443F32"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -151,6 +175,13 @@ export default function Loginpage() {
                   </Text>
                 </Pressable>
               </View>
+              {fieldErrors.password ? <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text> : null}
+
+              {formError ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{formError}</Text>
+                </View>
+              ) : null}
             </View>
 
             {/* FORGOT PASSWORD */}
@@ -167,8 +198,14 @@ export default function Loginpage() {
               style={({ pressed }) => [
                 styles.loginButton,
                 pressed && styles.buttonPressed,
+                isSubmitting && styles.buttonDisabled,
               ]}
-              onPress={handleLogin}
+              onPress={() => {
+                if (!isSubmitting) {
+                  void handleLogin();
+                }
+              }}
+              disabled={isSubmitting}
             >
               <Text style={styles.loginNepali}>लगइन गर्नुहोस्</Text>
               <Text style={styles.loginEnglish}>Login</Text>
@@ -177,9 +214,7 @@ export default function Loginpage() {
             {/* VOICE LOGIN */}
             <Pressable
               style={styles.voiceButton}
-              onPress={() =>
-                alert("Voice login will be added later.")
-              }
+              onPress={() => setFormError('Voice login will be added later.')}
             >
               <Text style={styles.voiceButtonText}>
                 or use voice to log in
@@ -330,6 +365,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingHorizontal: 5,
   },
+  inputContainerError: {
+    borderWidth: 2,
+    borderColor: "#C0392B",
+  },
+  fieldErrorText: {
+    color: "#C0392B",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: -5,
+    marginBottom: 9,
+    marginLeft: 4,
+  },
+  errorBanner: {
+    backgroundColor: "#FBDCDC",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "#E4A0A0",
+  },
+  errorBannerText: {
+    color: "#8A1F1F",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   eyeButton: {
     width: 35,
     height: 35,
@@ -370,6 +433,9 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.75,
     transform: [{ scale: 0.98 }],
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   loginNepali: {
     color: "#FFF8ED",

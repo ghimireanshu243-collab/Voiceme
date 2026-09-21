@@ -11,7 +11,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -43,28 +42,30 @@ export default function CreateAccountScreen() {
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<{ name?: string; age?: string; email?: string; password?: string }>({});
 
     const handleContinue = async () => {
-        console.log('Continue pressed');
+        setFormError('');
 
+        const errors: typeof fieldErrors = {};
         if (!name.trim()) {
-            console.log('Validation failed: missing name');
-            Alert.alert('आवश्यक विवरण (Required)', 'कृपया आफ्नो नाम प्रविष्ट गर्नुहोस् (Please enter your name)');
-            return;
+            errors.name = 'कृपया आफ्नो नाम प्रविष्ट गर्नुहोस् (Please enter your name)';
         }
         if (!age.trim()) {
-            console.log('Validation failed: missing age');
-            Alert.alert('उमेर आवश्यक छ (Age required)', 'कृपया आफ्नो उमेर प्रविष्ट गर्नुहोस् (Please enter your age)');
-            return;
+            errors.age = 'कृपया आफ्नो उमेर प्रविष्ट गर्नुहोस् (Please enter your age)';
+        } else if (Number.isNaN(Number(age)) || Number(age) <= 0) {
+            errors.age = 'मान्य उमेर प्रविष्ट गर्नुहोस् (Please enter a valid age)';
         }
         if (!email.trim() || !email.includes('@')) {
-            console.log('Validation failed: invalid email');
-            Alert.alert('अमान्य इमेल (Invalid Email)', 'कृपया मान्य इमेल प्रविष्ट गर्नुहोस् (Please enter a valid email)');
-            return;
+            errors.email = 'कृपया मान्य इमेल प्रविष्ट गर्नुहोस् (Please enter a valid email)';
         }
         if (!password || password.length < 6) {
-            console.log('Validation failed: weak password');
-            Alert.alert('सुरक्षित पासवर्ड (Password)', 'पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ (Password must be at least 6 characters)');
+            errors.password = 'पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ (Password must be at least 6 characters)';
+        }
+
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
             return;
         }
 
@@ -93,7 +94,13 @@ export default function CreateAccountScreen() {
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(data?.error || 'Unable to create account right now.');
+                const message = data?.error || 'Unable to create account right now.';
+                if (/email/i.test(message)) {
+                    setFieldErrors((prev) => ({ ...prev, email: message }));
+                } else {
+                    setFormError(message);
+                }
+                return;
             }
 
             await persistAuthSession(data.token, data.user || {
@@ -106,7 +113,7 @@ export default function CreateAccountScreen() {
             router.replace('/Homepage');
         } catch (error: any) {
             console.error('Registration request failed:', error);
-            Alert.alert('Registration failed', error?.message || 'Please try again.');
+            setFormError('Unable to reach the server. Please check your connection and try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -145,7 +152,7 @@ export default function CreateAccountScreen() {
                         {/* Field 1: Name */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.fieldLabel}>नाम</Text>
-                            <View style={styles.inputPill}>
+                            <View style={[styles.inputPill, fieldErrors.name && styles.inputPillError]}>
                                 {/* User Avatar Icon */}
                                 <View style={styles.iconWrapper}>
                                     <View style={styles.avatarHead} />
@@ -156,17 +163,21 @@ export default function CreateAccountScreen() {
                                     placeholder="Name"
                                     placeholderTextColor="#7C5044"
                                     value={name}
-                                    onChangeText={setName}
+                                    onChangeText={(text) => {
+                                        setName(text);
+                                        if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                                    }}
                                     autoCapitalize="words"
                                     autoCorrect={false}
                                 />
                             </View>
+                            {fieldErrors.name ? <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text> : null}
                         </View>
 
                         {/* Field 2: Age */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.fieldLabel}>उमेर</Text>
-                            <View style={styles.inputPill}>
+                            <View style={[styles.inputPill, fieldErrors.age && styles.inputPillError]}>
                                 <View style={styles.iconWrapper}>
                                     <Text style={styles.ageIcon}>#</Text>
                                 </View>
@@ -175,18 +186,22 @@ export default function CreateAccountScreen() {
                                     placeholder="Age"
                                     placeholderTextColor="#7C5044"
                                     value={age}
-                                    onChangeText={setAge}
+                                    onChangeText={(text) => {
+                                        setAge(text);
+                                        if (fieldErrors.age) setFieldErrors((prev) => ({ ...prev, age: undefined }));
+                                    }}
                                     keyboardType="numeric"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                 />
                             </View>
+                            {fieldErrors.age ? <Text style={styles.fieldErrorText}>{fieldErrors.age}</Text> : null}
                         </View>
 
                         {/* Field 3: Email */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.fieldLabel}>इमेल</Text>
-                            <View style={styles.inputPill}>
+                            <View style={[styles.inputPill, fieldErrors.email && styles.inputPillError]}>
                                 {/* Padlock Icon */}
                                 <View style={styles.iconWrapper}>
                                     <View style={styles.lockShackle} />
@@ -197,18 +212,22 @@ export default function CreateAccountScreen() {
                                     placeholder="name@email.com"
                                     placeholderTextColor="#7C5044"
                                     value={email}
-                                    onChangeText={setEmail}
+                                    onChangeText={(text) => {
+                                        setEmail(text);
+                                        if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                                    }}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                 />
                             </View>
+                            {fieldErrors.email ? <Text style={styles.fieldErrorText}>{fieldErrors.email}</Text> : null}
                         </View>
 
                         {/* Field 4: Password */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.fieldLabel}>पासवर्ड</Text>
-                            <View style={styles.inputPill}>
+                            <View style={[styles.inputPill, fieldErrors.password && styles.inputPillError]}>
                                 {/* Padlock Icon */}
                                 <View style={styles.iconWrapper}>
                                     <View style={styles.lockShackle} />
@@ -219,7 +238,10 @@ export default function CreateAccountScreen() {
                                     placeholder="Password"
                                     placeholderTextColor="#7C5044"
                                     value={password}
-                                    onChangeText={setPassword}
+                                    onChangeText={(text) => {
+                                        setPassword(text);
+                                        if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                                    }}
                                     secureTextEntry={!isPasswordVisible}
                                     autoCapitalize="none"
                                 />
@@ -234,7 +256,15 @@ export default function CreateAccountScreen() {
                                     </Text>
                                 </TouchableOpacity>
                             </View>
+                            {fieldErrors.password ? <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text> : null}
                         </View>
+
+                        {/* General error banner (server / network errors) */}
+                        {formError ? (
+                            <View style={styles.errorBanner}>
+                                <Text style={styles.errorBannerText}>{formError}</Text>
+                            </View>
+                        ) : null}
 
                         {/* Submit Button */}
                         <Pressable
@@ -339,6 +369,17 @@ const styles = StyleSheet.create({
         height: 54,
         paddingHorizontal: 18,
     },
+    inputPillError: {
+        borderWidth: 2,
+        borderColor: '#C0392B',
+    },
+    fieldErrorText: {
+        color: '#C0392B',
+        fontSize: 13,
+        fontWeight: '600',
+        marginTop: 6,
+        marginLeft: 18,
+    },
     iconWrapper: {
         width: 22,
         height: 22,
@@ -396,6 +437,21 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: '#7C5044',
         fontWeight: '600',
+    },
+    errorBanner: {
+        backgroundColor: '#FBDCDC',
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginTop: 6,
+        borderWidth: 1,
+        borderColor: '#E4A0A0',
+    },
+    errorBannerText: {
+        color: '#8A1F1F',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     continueButton: {
         backgroundColor: '#26533A', // Deep evergreen forest
