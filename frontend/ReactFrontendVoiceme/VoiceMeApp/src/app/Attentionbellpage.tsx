@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
 import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
 
-const BELL_SOUND_URI = 'https://actions.google.com/sounds/v1/alarms/medium_bell_ringing_near.ogg';
+const API_BASE_URL = Platform.OS === 'android'
+    ? 'http://10.0.2.2:8000'
+    : 'http://localhost:8000';
 
 interface AttentionBellScreenProps {
     onBack?: () => void;
@@ -23,27 +24,23 @@ interface AttentionBellScreenProps {
 
 export default function AttentionBellScreen({ onBack }: AttentionBellScreenProps) {
     const [isRinging, setIsRinging] = useState(true);
-    const bellSound = useAudioPlayer(BELL_SOUND_URI);
+    // Both the chime and the spoken prompt are generated and served by the
+    // backend (see backend/attentionbell) instead of an externally hosted
+    // sound file and on-device text-to-speech.
+    const bellSound = useAudioPlayer(`${API_BASE_URL}/api/bell/ring/`);
+    const voicePrompt = useAudioPlayer(`${API_BASE_URL}/api/tts/bell/ne/`);
 
-    // Play Nepali attention prompt and trigger haptic loop while ringing
+    // Play the backend bell chime + Nepali attention prompt, with a haptic loop, while ringing
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
 
         if (isRinging) {
             const ring = () => {
                 bellSound.seekTo(0).then(() => bellSound.play()).catch(() => { });
+                voicePrompt.seekTo(0).then(() => voicePrompt.play()).catch(() => { });
 
                 try {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                } catch { }
-
-                try {
-                    Speech.stop();
-                    Speech.speak('ध्यान दिनुहोस्', {
-                        language: 'ne-NP',
-                        pitch: 1.1,
-                        rate: 0.9,
-                    });
                 } catch { }
             };
 
@@ -51,18 +48,15 @@ export default function AttentionBellScreen({ onBack }: AttentionBellScreenProps
             interval = setInterval(ring, 2200);
         } else {
             bellSound.pause();
+            voicePrompt.pause();
 
             try {
-                Speech.stop();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch { }
         }
 
         return () => {
             if (interval) clearInterval(interval);
-            try {
-                Speech.stop();
-            } catch { }
         };
     }, [isRinging]);
 

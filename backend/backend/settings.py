@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'authentication',
     'flashcards',
+    'attentionbell',
 ]
 
 MIDDLEWARE = [
