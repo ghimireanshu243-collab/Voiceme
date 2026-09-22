@@ -99,6 +99,26 @@ def login_user(request):
         }
     }, status=status.HTTP_200_OK)
 
+@api_view(['POST'])
+def delete_account(request):
+    data = request.data
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = users_collection.find_one({'email': email})
+    if not user or not check_password(password, user['password']):
+        return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    user_id = str(user['_id'])
+    users_collection.delete_one({'_id': user['_id']})
+    notes_collection.delete_many({'user_id': user_id})
+    password_resets_collection.delete_many({'email': email})
+
+    return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_200_OK)
+
 def _hash_reset_token(token):
     """Reset tokens are looked up by value, so they need a deterministic hash."""
     return hashlib.sha256(token.encode('utf-8')).hexdigest()

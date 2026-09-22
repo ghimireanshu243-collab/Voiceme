@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +18,7 @@ const AUTH_TOKEN_KEY = 'voiceme.authToken';
 const AUTH_USER_KEY = 'voiceme.user';
 const REGISTERED_NAME_KEY = 'voiceme.registeredName';
 const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
+const SELECTED_ROLE_KEY = 'voiceme.selectedRole';
 const API_BASE_URL = Platform.OS === 'android'
   ? 'http://10.0.2.2:8000'
   : 'http://localhost:8000';
@@ -33,11 +35,22 @@ const persistAuthSession = async (token: string, user: { id?: string; name?: str
   }
 };
 
+const clearLocalSession = async () => {
+  await AsyncStorage.multiRemove([
+    AUTH_TOKEN_KEY,
+    AUTH_USER_KEY,
+    REGISTERED_NAME_KEY,
+    REGISTERED_AGE_KEY,
+    SELECTED_ROLE_KEY,
+  ]);
+};
+
 export default function Loginpage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -84,6 +97,65 @@ export default function Loginpage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const deleteAccount = async () => {
+    setFormError('');
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/delete-account/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setFormError(data?.error || 'Unable to delete account right now.');
+        return;
+      }
+
+      await clearLocalSession();
+      setEmail('');
+      setPassword('');
+      Alert.alert('Account deleted', 'Your account has been permanently deleted.');
+    } catch (error: any) {
+      console.error('Delete account request failed:', error);
+      setFormError('Unable to reach the server. Please check your connection and try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    setFormError('');
+
+    const errors: typeof fieldErrors = {};
+    if (!email.trim()) {
+      errors.email = 'कृपया आफ्नो इमेल प्रविष्ट गर्नुहोस् (Please enter your email)';
+    }
+    if (!password.trim()) {
+      errors.password = 'कृपया आफ्नो पासवर्ड प्रविष्ट गर्नुहोस् (Please enter your password)';
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    Alert.alert(
+      'Delete account?',
+      'खाता मेटाउनुहोस्? This will permanently delete your account and all of your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => void deleteAccount() },
+      ]
+    );
   };
 
   return (
@@ -231,6 +303,28 @@ export default function Loginpage() {
               </Text>
               <Text style={styles.createEnglish}>
                 Create new account
+              </Text>
+            </Pressable>
+
+            {/* DELETE ACCOUNT */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteAccount,
+                pressed && styles.buttonPressed,
+                isDeleting && styles.buttonDisabled,
+              ]}
+              onPress={() => {
+                if (!isDeleting) {
+                  handleDeleteAccount();
+                }
+              }}
+              disabled={isDeleting}
+            >
+              <Text style={styles.deleteNepali}>
+                {isDeleting ? 'मेटाउँदै...' : 'खाता मेटाउनुहोस्'}
+              </Text>
+              <Text style={styles.deleteEnglish}>
+                {isDeleting ? 'Deleting…' : 'Delete account'}
               </Text>
             </Pressable>
           </View>
@@ -472,6 +566,20 @@ const styles = StyleSheet.create({
   createEnglish: {
     color: "#54231E",
     fontSize: 12,
+    marginTop: 2,
+  },
+  deleteAccount: {
+    alignItems: "center",
+    marginTop: 18,
+  },
+  deleteNepali: {
+    color: "#8A1F1F",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  deleteEnglish: {
+    color: "#8A1F1F",
+    fontSize: 11,
     marginTop: 2,
   },
 });
