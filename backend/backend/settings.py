@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'flashcards',
     'attentionbell',
     'dashboard',
+    'routines',
 ]
 
 MIDDLEWARE = [

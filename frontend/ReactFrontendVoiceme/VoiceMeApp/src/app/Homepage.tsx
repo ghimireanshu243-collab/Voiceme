@@ -56,6 +56,7 @@ export default function Homepage({
   const [menuVisible, setMenuVisible] = useState(false);
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [gpsStatus, setGpsStatus] = useState<GPSStatus | null>(null);
+  const [routineSummary, setRoutineSummary] = useState<{ done: number; total: number } | null>(null);
 
   const loadUserData = useCallback(() => {
     AsyncStorage.multiGet([REGISTERED_NAME_KEY, REGISTERED_AGE_KEY, REGISTERED_AVATAR_KEY])
@@ -95,6 +96,18 @@ export default function Homepage({
     try {
       const gpsRes = await fetch(`${API_BASE_URL}/api/child/gps/`, { headers });
       if (gpsRes.ok) setGpsStatus(await gpsRes.json());
+    } catch { }
+
+    try {
+      const routinesRes = await fetch(`${API_BASE_URL}/api/routines/`, { headers });
+      if (routinesRes.ok) {
+        const data = await routinesRes.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        setRoutineSummary({
+          done: items.filter((i: { completed?: boolean }) => i.completed).length,
+          total: items.length,
+        });
+      }
     } catch { }
   }, []);
 
@@ -436,7 +449,13 @@ export default function Homepage({
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>दिनचर्या</Text>
               <Text style={styles.cardSubtitle}>Daily routine</Text>
-              <Text style={styles.cardMeta}>3 of 7 done</Text>
+              <Text style={styles.cardMeta}>
+                {routineSummary
+                  ? routineSummary.total > 0
+                    ? `${routineSummary.done} of ${routineSummary.total} done`
+                    : 'set up your day'
+                  : '...'}
+              </Text>
             </View>
           </Pressable>
         </View>

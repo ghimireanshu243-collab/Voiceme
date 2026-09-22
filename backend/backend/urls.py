@@ -7,4 +7,5 @@ urlpatterns = [
     path('api/', include('flashcards.urls')),
     path('api/', include('attentionbell.urls')),
     path('api/', include('dashboard.urls')),
+    path('api/', include('routines.urls')),
 ]

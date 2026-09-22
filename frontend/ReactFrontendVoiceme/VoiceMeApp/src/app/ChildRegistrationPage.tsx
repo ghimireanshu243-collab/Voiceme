@@ -26,15 +26,76 @@ interface CharacterOption {
   english: string;
 }
 
+interface DraftRoutineItem {
+  id: string;
+  slotIndex: number;
+  time: string;
+  title: string;
+  icon: string;
+}
+
+const ROUTINE_STORAGE_KEY = "voiceme.daily_routine_state";
+
+// Every half hour across the full day so the child can place a routine at
+// any point, not just the hardcoded slots the dashboards used to default to.
+const TIME_SLOTS: string[] = Array.from({ length: 48 }, (_, i) => {
+  const hour24 = Math.floor(i / 2);
+  const minute = i % 2 === 0 ? "00" : "30";
+  const period = hour24 < 12 ? "AM" : "PM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${String(hour12).padStart(2, "0")}:${minute} ${period}`;
+});
+
+const ROUTINE_EMOJI_RULES: { keywords: string[]; icon: string }[] = [
+  { keywords: ["teeth", "brush", "दाँत", "माझ्"], icon: "🪥" },
+  { keywords: ["medicine", "aushadhi", "औषधि"], icon: "💊" },
+  { keywords: ["breakfast", "नास्ता", "खाजा", "बिहान"], icon: "🥣" },
+  { keywords: ["lunch", "दिउँसो"], icon: "🍱" },
+  { keywords: ["dinner", "साँझ", "रात"], icon: "🍽️" },
+  { keywords: ["milk", "दूध"], icon: "🥛" },
+  { keywords: ["water", "drink", "पानी"], icon: "💧" },
+  { keywords: ["snack", "biscuit"], icon: "🍪" },
+  { keywords: ["study", "homework", "पढ", "school", "विद्यालय"], icon: "📚" },
+  { keywords: ["play", "sport", "football", "खेल"], icon: "⚽" },
+  { keywords: ["bath", "shower", "नुहाउ"], icon: "🛁" },
+  { keywords: ["sleep", "bed", "nap", "सुत", "निद्रा"], icon: "🌙" },
+  { keywords: ["exercise", "yoga", "run", "walk", "व्यायाम"], icon: "🏃" },
+  { keywords: ["tv", "cartoon", "television"], icon: "📺" },
+  { keywords: ["clean", "tidy", "सफा"], icon: "🧹" },
+  { keywords: ["pray", "पूजा"], icon: "🙏" },
+];
+
+function suggestRoutineEmoji(title: string): string {
+  const lower = title.toLowerCase();
+  for (const rule of ROUTINE_EMOJI_RULES) {
+    if (rule.keywords.some((word) => lower.includes(word.toLowerCase()))) {
+      return rule.icon;
+    }
+  }
+  return "⏰";
+}
+
 const CHARACTERS: CharacterOption[] = [
   { emoji: "👦", nepali: "आरव", english: "Aarav" },
   { emoji: "👧", nepali: "माया", english: "Maya" },
   { emoji: "🧒", nepali: "रोशन", english: "Roshan" },
+  { emoji: "👶", nepali: "बच्चा", english: "Baby" },
   { emoji: "🦊", nepali: "स्याल", english: "Fox" },
   { emoji: "🦁", nepali: "सिंह", english: "Lion" },
   { emoji: "🐼", nepali: "पाण्डा", english: "Panda" },
+  { emoji: "🐶", nepali: "कुकुर", english: "Dog" },
+  { emoji: "🐱", nepali: "बिरालो", english: "Cat" },
+  { emoji: "🐰", nepali: "खरायो", english: "Rabbit" },
+  { emoji: "🐯", nepali: "बाघ", english: "Tiger" },
+  { emoji: "🐨", nepali: "कोआला", english: "Koala" },
+  { emoji: "🐸", nepali: "भ्यागुतो", english: "Frog" },
+  { emoji: "🦄", nepali: "युनिकर्न", english: "Unicorn" },
+  { emoji: "🐵", nepali: "बाँदर", english: "Monkey" },
   { emoji: "🌟", nepali: "तारा", english: "Star" },
   { emoji: "🚀", nepali: "रकेट", english: "Rocket" },
+  { emoji: "🌈", nepali: "इन्द्रेणी", english: "Rainbow" },
+  { emoji: "⚽", nepali: "फुटबल", english: "Football" },
+  { emoji: "🎈", nepali: "बेलुन", english: "Balloon" },
 ];
 
 export default function ChildRegistrationPage() {
@@ -43,6 +104,10 @@ export default function ChildRegistrationPage() {
   const [selectedAvatar, setSelectedAvatar] = useState("👦");
   const [parentName, setParentName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState(14); // 07:00 AM
+  const [routineDraftTitle, setRoutineDraftTitle] = useState("");
+  const [routineEntries, setRoutineEntries] = useState<DraftRoutineItem[]>([]);
 
   const [dialogInfo, setDialogInfo] = useState<{
     visible: boolean;
@@ -118,6 +183,33 @@ export default function ChildRegistrationPage() {
     } else {
       router.replace("/RoleSelectionpage");
     }
+  };
+
+  const handleAddRoutineEntry = () => {
+    const title = routineDraftTitle.trim();
+    if (!title) return;
+
+    try {
+      Haptics.selectionAsync();
+    } catch {}
+
+    setRoutineEntries((prev) =>
+      [
+        ...prev,
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          slotIndex: selectedSlotIndex,
+          time: TIME_SLOTS[selectedSlotIndex],
+          title,
+          icon: suggestRoutineEmoji(title),
+        },
+      ].sort((a, b) => a.slotIndex - b.slotIndex)
+    );
+    setRoutineDraftTitle("");
+  };
+
+  const handleRemoveRoutineEntry = (id: string) => {
+    setRoutineEntries((prev) => prev.filter((entry) => entry.id !== id));
   };
 
   const handleCompleteRegistration = async () => {
@@ -204,6 +296,44 @@ export default function ChildRegistrationPage() {
         }
       }
     } catch {}
+
+    // Only touch the routine list if the child actually set one up here —
+    // an empty submission should never wipe out routines saved earlier.
+    if (routineEntries.length > 0) {
+      const routinesToSave = routineEntries.map((entry) => ({
+        id: entry.id,
+        time: entry.time,
+        nepaliTitle: entry.title,
+        englishTitle: entry.title,
+        icon: entry.icon,
+        completed: false,
+      }));
+
+      try {
+        await AsyncStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(routinesToSave));
+      } catch {}
+
+      try {
+        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) {
+          await fetch(`${API_BASE_URL}/api/routines/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              items: routineEntries.map((entry) => ({
+                time: entry.time,
+                slot_index: entry.slotIndex,
+                title: entry.title,
+                icon: entry.icon,
+              })),
+            }),
+          });
+        }
+      } catch {}
+    }
 
     setDialogInfo({
       visible: true,
@@ -314,15 +444,6 @@ export default function ChildRegistrationPage() {
                         {char.emoji}
                       </Text>
 
-                      <Text
-                        style={[
-                          styles.avatarText,
-                          isSelected && styles.avatarTextSelected,
-                        ]}
-                      >
-                        {char.nepali}
-                      </Text>
-
                       {isSelected && (
                         <View style={styles.miniCheck}>
                           <Text style={styles.miniCheckText}>
@@ -376,6 +497,98 @@ export default function ChildRegistrationPage() {
                   maxLength={10}
                 />
               </View>
+            </View>
+
+            {/* Daily Routine Setup */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                दैनिक दिनचर्या (Daily Routine)
+              </Text>
+              <Text style={styles.routineHint}>
+                जति चाहिन्छ त्यति दिनचर्या थप्नुहोस् (Add as many routines as you like)
+              </Text>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.timeSlotScroll}
+                contentContainerStyle={styles.timeSlotScrollContent}
+              >
+                {TIME_SLOTS.map((slot, index) => {
+                  const isSelected = index === selectedSlotIndex;
+                  return (
+                    <Pressable
+                      key={slot}
+                      style={[
+                        styles.timeSlotChip,
+                        isSelected && styles.timeSlotChipSelected,
+                      ]}
+                      onPress={() => setSelectedSlotIndex(index)}
+                    >
+                      <Text
+                        style={[
+                          styles.timeSlotChipText,
+                          isSelected && styles.timeSlotChipTextSelected,
+                        ]}
+                      >
+                        {slot}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={styles.inputPill}>
+                <Text style={styles.inputIcon}>
+                  {routineDraftTitle.trim() ? suggestRoutineEmoji(routineDraftTitle) : "📝"}
+                </Text>
+
+                <TextInput
+                  style={styles.textInput}
+                  value={routineDraftTitle}
+                  onChangeText={setRoutineDraftTitle}
+                  placeholder="e.g. Brush teeth"
+                  placeholderTextColor="#7C6356"
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddRoutineEntry}
+                />
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.addRoutineButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={handleAddRoutineEntry}
+              >
+                <Text style={styles.addRoutineButtonText}>
+                  + थप्नुहोस् (Add Routine)
+                </Text>
+              </Pressable>
+
+              {routineEntries.length > 0 && (
+                <View style={styles.routineList}>
+                  {routineEntries.map((entry) => (
+                    <View key={entry.id} style={styles.routineRow}>
+                      <Text style={styles.routineRowIcon}>{entry.icon}</Text>
+                      <View style={styles.routineRowText}>
+                        <Text style={styles.routineRowTime}>{entry.time}</Text>
+                        <Text style={styles.routineRowTitle} numberOfLines={1}>
+                          {entry.title}
+                        </Text>
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${entry.title}`}
+                        style={styles.routineRemoveBtn}
+                        onPress={() => handleRemoveRoutineEntry(entry.id)}
+                      >
+                        <Text style={styles.routineRemoveBtnText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Complete Registration */}
@@ -574,18 +787,7 @@ const styles = StyleSheet.create({
   },
 
   avatarEmoji: {
-    fontSize: 22,
-  },
-
-  avatarText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#4B1C19",
-    marginTop: 2,
-  },
-
-  avatarTextSelected: {
-    color: "#FFFFFF",
+    fontSize: 28,
   },
 
   miniCheck: {
@@ -604,6 +806,113 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 9,
     fontWeight: "bold",
+  },
+
+  routineHint: {
+    fontSize: 11.5,
+    color: "#7C6356",
+    marginTop: -4,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+
+  timeSlotScroll: {
+    marginBottom: 10,
+  },
+
+  timeSlotScrollContent: {
+    columnGap: 8,
+    paddingRight: 4,
+  },
+
+  timeSlotChip: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: "#F7D5C6",
+  },
+
+  timeSlotChipSelected: {
+    backgroundColor: "#235237",
+  },
+
+  timeSlotChipText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#4B1C19",
+  },
+
+  timeSlotChipTextSelected: {
+    color: "#FFFFFF",
+  },
+
+  addRoutineButton: {
+    marginTop: 10,
+    backgroundColor: "#B95928",
+    borderRadius: 18,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+
+  addRoutineButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontWeight: "800",
+  },
+
+  routineList: {
+    marginTop: 12,
+    backgroundColor: "#EFE3D0",
+    borderRadius: 18,
+    padding: 8,
+    rowGap: 6,
+  },
+
+  routineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFFCC",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+
+  routineRowIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+
+  routineRowText: {
+    flex: 1,
+  },
+
+  routineRowTime: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7C6356",
+  },
+
+  routineRowTitle: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: "#3A2218",
+    marginTop: 1,
+  },
+
+  routineRemoveBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#F7D5C6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+
+  routineRemoveBtnText: {
+    color: "#B95928",
+    fontSize: 13,
+    fontWeight: "800",
   },
 
   submitButton: {
