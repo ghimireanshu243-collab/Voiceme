@@ -10,17 +10,70 @@ import {
   Alert,
   Platform,
   Linking,
+  Vibration,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import * as Notifications from 'expo-notifications';
 import Svg, { Path } from 'react-native-svg';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 const API_BASE_URL = Platform.OS === 'android'
   ? 'http://192.168.1.77:8000'
   : 'http://192.168.1.77:8000';
+
+// By default, a foreground notification is silently queued instead of shown —
+// this makes sure the SOS alert actually pops up and plays its sound even
+// while the app is open and already on this screen.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// A long, distinct pattern so the phone itself makes it unmistakable an
+// emergency was triggered, independent of whatever ringtone/sound settings
+// are in effect for the call that follows.
+const SOS_VIBRATION_PATTERN = [0, 500, 250, 500, 250, 500];
+
+async function firePopupAndVibrate() {
+  try {
+    Vibration.vibrate(SOS_VIBRATION_PATTERN);
+  } catch {}
+
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('sos-alerts', {
+        name: 'Emergency SOS',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: SOS_VIBRATION_PATTERN,
+        sound: 'default',
+      });
+    }
+
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      await Notifications.requestPermissionsAsync();
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🚨 Emergency SOS Activated',
+        body: 'आपतकालीन SOS सक्रिय भयो — स्याहारकर्तालाई कल गरिँदैछ',
+        sound: 'default',
+      },
+      trigger: null,
+    });
+  } catch {
+    // Notifications aren't available on every platform (e.g. web) — the
+    // vibration above and the phone call that follows still go through.
+  }
+}
 
 interface Contact {
   name?: string;
@@ -34,6 +87,8 @@ export default function SOSpage() {
   const [locationLabel, setLocationLabel] = useState('घर (Ward 4 Home Safe Zone)');
 
   useEffect(() => {
+    firePopupAndVibrate();
+
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } catch {}
@@ -68,6 +123,12 @@ export default function SOSpage() {
         if (alert.caregiver) setCaregiver(alert.caregiver);
         if (alert.parent) setParent(alert.parent);
         if (alert.location_label) setLocationLabel(alert.location_label);
+
+        // This screen only exists because SOS was just triggered, so the
+        // call happens immediately and automatically — an emergency isn't
+        // the moment to make someone find and tap a "call" button too.
+        const emergencyPhone = alert.caregiver?.phone || alert.parent?.phone;
+        if (emergencyPhone) dialNumber(emergencyPhone);
       } catch {
         // Offline or backend unreachable: fall back to the placeholder contacts below.
       }

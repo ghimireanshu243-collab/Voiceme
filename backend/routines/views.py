@@ -1,6 +1,4 @@
 import secrets
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -9,39 +7,7 @@ from rest_framework import status
 from authentication.views import get_authenticated_user
 from dashboard.db import children_collection
 from .db import routines_collection
-
-# Routines are a Nepali-local "day", not a UTC one, so the reset lines up
-# with when the child's day actually rolls over rather than Django's UTC clock.
-NEPAL_TZ = ZoneInfo('Asia/Kathmandu')
-
-
-def _today_str():
-    return datetime.now(NEPAL_TZ).date().isoformat()
-
-
-def _apply_daily_reset(doc):
-    """Uncheck every routine item once the Nepal-local day has rolled over,
-    so a 'daily' routine actually starts fresh each day instead of staying
-    checked off from yesterday.
-    """
-    if not doc:
-        return doc
-
-    today = _today_str()
-    if doc.get('reset_date') == today:
-        return doc
-
-    items = doc.get('items', [])
-    for item in items:
-        item['completed'] = False
-
-    routines_collection.update_one(
-        {'_id': doc['_id']},
-        {'$set': {'items': items, 'reset_date': today}},
-    )
-    doc['items'] = items
-    doc['reset_date'] = today
-    return doc
+from .services import apply_daily_reset, today_str
 
 
 def _serialize_item(item):
@@ -71,7 +37,7 @@ def routine_list(request):
         return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
-        doc = _apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
+        doc = apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
         return Response({'items': _serialize_items(doc)}, status=status.HTTP_200_OK)
 
     # POST replaces the whole list — the child sets up their day as a set
@@ -81,7 +47,7 @@ def routine_list(request):
     if not isinstance(incoming, list):
         return Response({'error': 'A list of routine items is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    existing = _apply_daily_reset(routines_collection.find_one({'user_id': user_id})) or {}
+    existing = apply_daily_reset(routines_collection.find_one({'user_id': user_id})) or {}
     existing_by_id = {item.get('id'): item for item in existing.get('items', [])}
 
     items = []
@@ -104,7 +70,7 @@ def routine_list(request):
 
     routines_collection.update_one(
         {'user_id': user_id},
-        {'$set': {'items': items, 'reset_date': _today_str()}, '$setOnInsert': {'user_id': user_id}},
+        {'$set': {'items': items, 'reset_date': today_str()}, '$setOnInsert': {'user_id': user_id}},
         upsert=True,
     )
     return Response({'items': _serialize_items({'items': items})}, status=status.HTTP_200_OK)
@@ -116,7 +82,7 @@ def toggle_routine_item(request, item_id):
     if not user_id:
         return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    doc = _apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
+    doc = apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
     if not doc:
         return Response({'error': 'No routine found for this account.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -153,5 +119,5 @@ def caregiver_routines(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    doc = _apply_daily_reset(routines_collection.find_one({'user_id': child.get('user_id')}))
+    doc = apply_daily_reset(routines_collection.find_one({'user_id': child.get('user_id')}))
     return Response({'items': _serialize_items(doc)}, status=status.HTTP_200_OK)

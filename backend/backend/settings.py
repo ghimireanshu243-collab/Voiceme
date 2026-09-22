@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'attentionbell',
     'dashboard',
     'routines',
+    'assistant',
 ]
 
 MIDDLEWARE = [

@@ -460,7 +460,40 @@ export default function Homepage({
           </Pressable>
         </View>
 
-        {/* 4. SOS Emergency Button Banner */}
+        {/* 4. AI HELPER — a distinct banner below the feature grid, not one
+            of its cards, since this isn't a fixed feature like the four
+            above but a context-aware helper layered on top of them. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open AI Helper"
+          style={({ pressed }) => [
+            styles.aiHelperButton,
+            pressed && styles.aiHelperButtonPressed,
+          ]}
+          onPress={() => {
+            try { Haptics.selectionAsync(); } catch { }
+            router.push('/AIFlashcardsPage');
+          }}
+        >
+          <View style={styles.aiHelperContentRow}>
+            <View style={styles.aiHelperIconBadge}>
+              <Text style={styles.aiHelperEmoji}>🤖</Text>
+            </View>
+
+            <View style={styles.aiHelperInfo}>
+              <Text style={styles.aiHelperTitle}>AI HELPER</Text>
+              <Text style={styles.aiHelperSubtitle}>
+                समय र स्थान अनुसार अहिले के गर्ने भन्ने देखाउँछ
+              </Text>
+            </View>
+
+            <View style={styles.aiHelperArrowBadge}>
+              <Text style={styles.aiHelperArrowText}>›</Text>
+            </View>
+          </View>
+        </Pressable>
+
+        {/* 5. SOS Emergency Button Banner */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="आपतकालीन SOS (Emergency Alert)"
@@ -922,6 +955,81 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#8A786C',
+  },
+
+  /* AI Helper Banner Styles */
+  aiHelperButton: {
+    marginTop: 16,
+    borderRadius: 22,
+    backgroundColor: '#DCE6F2',
+    borderWidth: 1.5,
+    borderColor: '#B7CBE8',
+    padding: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#2A4F8C',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  aiHelperButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+    backgroundColor: '#CBDBEF',
+  },
+  aiHelperContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  aiHelperIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#C6D9F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#A9C3E8',
+  },
+  aiHelperEmoji: {
+    fontSize: 22,
+  },
+  aiHelperInfo: {
+    flex: 1,
+  },
+  aiHelperTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1F3A63',
+    letterSpacing: 0.3,
+  },
+  aiHelperSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#3F5A85',
+    lineHeight: 16,
+  },
+  aiHelperArrowBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#C6D9F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  aiHelperArrowText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F3A63',
+    marginTop: -2,
   },
 
   /* SOS Emergency Button Styles */

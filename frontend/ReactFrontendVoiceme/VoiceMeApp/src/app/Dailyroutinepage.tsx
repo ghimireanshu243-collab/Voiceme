@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     AppState,
+    BackHandler,
     Platform,
     Pressable,
     SafeAreaView,
@@ -260,6 +261,33 @@ export default function Dailyroutinepage() {
         );
     };
 
+    // Falls back to the home screen when there's no navigation history to
+    // pop (e.g. this page was opened directly), so the button/hardware back
+    // action never silently does nothing and strands the user here.
+    const handleGoBack = useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/Homepage');
+        }
+    }, []);
+
+    // The Android hardware/gesture back action should close the add/edit
+    // modal first if it's open, rather than leaving the whole screen while
+    // a routine is mid-edit.
+    useEffect(() => {
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (addModalVisible) {
+                setAddModalVisible(false);
+                setEditingItemId(null);
+                return true;
+            }
+            handleGoBack();
+            return true;
+        });
+        return () => subscription.remove();
+    }, [addModalVisible, handleGoBack]);
+
     const doneCount = items.filter((i) => i.completed).length;
 
     return (
@@ -267,7 +295,7 @@ export default function Dailyroutinepage() {
             <StatusBar barStyle="dark-content" backgroundColor="#F4EFE6" />
 
             <View style={styles.headerRow}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Return to home" onPress={() => router.back()} style={styles.backButton}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Return to home" onPress={handleGoBack} style={styles.backButton}>
                     <Text style={styles.backText}>‹ Home</Text>
                 </Pressable>
 

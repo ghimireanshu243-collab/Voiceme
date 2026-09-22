@@ -1,12 +1,51 @@
 import datetime
 import secrets
 
+import requests
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
 from authentication.views import get_authenticated_user
 from .db import children_collection, sos_alerts_collection
+
+# Maps an OpenStreetMap place type/class (from Nominatim reverse geocoding)
+# to the small vocabulary the context-aware assistant knows how to react to.
+# Unrecognised OSM types just mean no location-based suggestion is shown.
+PLACE_CATEGORY_MAP = {
+    'restaurant': 'restaurant', 'fast_food': 'restaurant', 'cafe': 'restaurant', 'food_court': 'restaurant',
+    'school': 'school', 'college': 'school', 'university': 'school', 'kindergarten': 'school',
+    'hospital': 'hospital', 'clinic': 'hospital', 'pharmacy': 'hospital', 'doctors': 'hospital',
+    'park': 'park', 'playground': 'park', 'garden': 'park', 'nature_reserve': 'park',
+    'supermarket': 'store', 'convenience': 'store', 'mall': 'store', 'marketplace': 'store', 'shop': 'store',
+    'house': 'home', 'residential': 'home', 'apartments': 'home',
+}
+
+
+def _lookup_place(lat, lng):
+    """
+    Reverse-geocodes coordinates to a place category using OpenStreetMap's
+    free Nominatim API (no key needed). Used once the GPS band is actually
+    sending coordinates; best-effort only — a failed/slow lookup just means
+    no location-based suggestion for this update, never a broken request.
+    """
+    try:
+        resp = requests.get(
+            'https://nominatim.openstreetmap.org/reverse',
+            params={'lat': lat, 'lon': lng, 'format': 'jsonv2', 'zoom': 18},
+            headers={'User-Agent': 'VoiceMeApp/1.0 (accessibility app for children)'},
+            timeout=5,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return None, None
+
+    osm_type = (data.get('type') or '').lower()
+    osm_class = (data.get('category') or data.get('class') or '').lower()
+    category = PLACE_CATEGORY_MAP.get(osm_type) or PLACE_CATEGORY_MAP.get(osm_class)
+    label = data.get('name') or (data.get('display_name') or '').split(',')[0] or None
+    return category, label
 
 
 def _merge_contact(existing, incoming, id_prefix):
@@ -58,7 +97,7 @@ def _serialize_child(child, include_connect_code=True):
         'avatar': child.get('avatar', ''),
         'caregiver': _public_contact(child.get('caregiver')),
         'parent': _public_contact(child.get('parent')),
-        'gps': child.get('gps', {'connected': False, 'location_label': None, 'updated_at': None}),
+        'gps': child.get('gps', {'connected': False, 'location_label': None, 'place_category': None, 'updated_at': None}),
     }
     if include_connect_code:
         # The connect code is the parent's own invite secret for linking
@@ -113,7 +152,7 @@ def child_profile(request):
     return Response(_serialize_child(child), status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 def gps_status(request):
     user_id = get_authenticated_user(request)
     if not user_id:
@@ -123,7 +162,37 @@ def gps_status(request):
     if not child:
         return Response({'error': 'No child profile found for this account.'}, status=status.HTTP_404_NOT_FOUND)
 
-    gps = child.get('gps') or {'connected': False, 'location_label': None, 'updated_at': None}
+    if request.method == 'GET':
+        gps = child.get('gps') or {'connected': False, 'location_label': None, 'place_category': None, 'updated_at': None}
+        return Response(gps, status=status.HTTP_200_OK)
+
+    # POST: the GPS band reports raw coordinates here once it's built, and
+    # they get reverse-geocoded into a place category. Until then this also
+    # accepts a place_category/location_label directly, so the context-aware
+    # assistant (which reacts to place_category) can be built and tested
+    # without the hardware existing yet.
+    data = request.data
+    lat = data.get('lat')
+    lng = data.get('lng')
+    place_category = data.get('place_category')
+    location_label = data.get('location_label')
+
+    if lat is not None and lng is not None:
+        looked_up_category, looked_up_label = _lookup_place(lat, lng)
+        place_category = place_category or looked_up_category
+        location_label = location_label or looked_up_label
+    elif not place_category:
+        return Response({'error': 'lat/lng or place_category is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    gps = {
+        'connected': True,
+        'location_label': location_label,
+        'place_category': place_category,
+        'lat': lat,
+        'lng': lng,
+        'updated_at': datetime.datetime.utcnow().isoformat(),
+    }
+    children_collection.update_one({'user_id': user_id}, {'$set': {'gps': gps}})
     return Response(gps, status=status.HTTP_200_OK)
 
 

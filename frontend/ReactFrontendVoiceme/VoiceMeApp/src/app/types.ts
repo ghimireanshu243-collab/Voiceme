@@ -6,6 +6,7 @@ export type RootStackParamList = {
   Homepage: undefined;
   Flashcardpage: undefined;
   Dailyroutinepage: undefined;
+  AIFlashcardsPage: undefined;
   Attentionbellpage: undefined;
   Caregiverpage: undefined;
   Parentspage: undefined;
