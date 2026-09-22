@@ -1,0 +1,143 @@
+<svg width="390" height="844" viewBox="0 0 390 844" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Linear Gradient -->
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="390" y2="844" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#DC8247"/>
+      <stop offset="50%" stop-color="#C96F38"/>
+      <stop offset="100%" stop-color="#B25923"/>
+    </linearGradient>
+
+    <!-- Center Radial Glow -->
+    <radialGradient id="centerAura" cx="195" cy="380" r="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF2E6" stop-opacity="0.32"/>
+      <stop offset="60%" stop-color="#C96F38" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#C96F38" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Logo Emblem Fill -->
+    <linearGradient id="emblemGrad" x1="145" y1="310" x2="245" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF2E6" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#FFF2E6" stop-opacity="0.12"/>
+    </linearGradient>
+
+    <!-- Button Fill -->
+    <linearGradient id="btnGrad" x1="75" y1="710" x2="315" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1E5" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFF1E5" stop-opacity="0.14"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filter for Logo Emblem -->
+    <filter id="emblemShadow" x="125" y="290" width="140" height="140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#5E2606" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- ==================== 1. SCREEN FRAME & BACKGROUND ==================== -->
+  <g id="Frame-Splash-Screen" clip-path="url(#screenClip)">
+    <clipPath id="screenClip">
+      <rect width="390" height="844" rx="44" fill="white"/>
+    </clipPath>
+
+    <!-- Screen Canvas Fill -->
+    <rect width="390" height="844" rx="44" fill="url(#bgGradient)"/>
+
+    <!-- Ambient Subtle Geometric Aura Shapes -->
+    <circle id="Top-Right-Orb" cx="350" cy="110" r="140" fill="#FFFFFF" fill-opacity="0.06"/>
+    <circle id="Bottom-Left-Orb" cx="40" cy="740" r="160" fill="#000000" fill-opacity="0.07"/>
+    <circle id="Center-Glow" cx="195" cy="380" r="220" fill="url(#centerAura)"/>
+
+    <!-- ==================== 2. MOBILE STATUS BAR ==================== -->
+    <g id="Status-Bar">
+      <!-- Time -->
+      <text id="Status-Time" x="48" y="38" fill="#FFF1E5" font-family="SF Pro Text, Inter, system-ui, sans-serif" font-size="15" font-weight="600" letter-spacing="-0.3">9:41</text>
+
+      <!-- Dynamic Island / Sensor Notch -->
+      <rect id="Dynamic-Island" x="135" y="14" width="120" height="30" rx="15" fill="#1C1008"/>
+
+      <!-- Right Icons (Cellular, Wi-Fi, Battery) -->
+      <g id="Status-Icons" transform="translate(306, 26)">
+        <!-- Cellular Signal -->
+        <rect x="0" y="7" width="3" height="4" rx="0.8" fill="#FFF1E5"/>
+        <rect x="4.5" y="5" width="3" height="6" rx="0.8" fill="#FFF1E5"/>
+        <rect x="9" y="3" width="3" height="8" rx="0.8" fill="#FFF1E5"/>
+        <rect x="13.5" y="0.5" width="3" height="10.5" rx="0.8" fill="#FFF1E5"/>
+
+        <!-- Wi-Fi -->
+        <path d="M23 1 C26.5 1 29.5 2.5 31.5 4.5 M24.5 5 C27 5 29 6.2 30.2 7.5 M26 9 A2 2 0 1 1 28.5 9" stroke="#FFF1E5" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+
+        <!-- Battery -->
+        <rect x="37" y="1" width="22" height="11.5" rx="3.5" stroke="#FFF1E5" stroke-width="1.2" fill="none"/>
+        <rect x="39" y="3" width="14" height="7.5" rx="1.8" fill="#FFF1E5"/>
+        <path d="M60 4.5 C60.6 4.8 61 5.4 61 6 C61 6.6 60.6 7.2 60 7.5" stroke="#FFF1E5" stroke-width="1.2" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- ==================== 3. CENTRAL LOGO EMBLEM ==================== -->
+    <g id="Center-Logo-Emblem" filter="url(#emblemShadow)">
+      <!-- Outer Concentric Dashed Pulse Ring -->
+      <circle cx="195" cy="340" r="66" stroke="#FFF2E6" stroke-opacity="0.25" stroke-width="1.5" stroke-dasharray="4 5"/>
+
+      <!-- Inner Glow Ring -->
+      <circle cx="195" cy="340" r="56" stroke="#FFF2E6" stroke-opacity="0.35" stroke-width="2"/>
+
+      <!-- Main Emblem Circle -->
+      <circle cx="195" cy="340" r="48" fill="url(#emblemGrad)" stroke="#FFF2E6" stroke-opacity="0.55" stroke-width="2"/>
+
+      <!-- Vector Microphone & Soundwaves Icon -->
+      <g id="Mic-Vector-Icon">
+        <!-- Mic Capsule -->
+        <rect x="187" y="322" width="16" height="26" rx="8" fill="#FFF1E5"/>
+
+        <!-- Mic U-Arc Bracket -->
+        <path d="M180 334 C180 342.5 186.7 349.5 195 349.5 C203.3 349.5 210 342.5 210 334" stroke="#FFF1E5" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+        <!-- Stand Stem -->
+        <line x1="195" y1="349.5" x2="195" y2="358" stroke="#FFF1E5" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Stand Base -->
+        <line x1="187" y1="358" x2="203" y2="358" stroke="#FFF1E5" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Left Audio Wave 1 -->
+        <path d="M172 328 C168.5 334.5 168.5 341.5 172 348" stroke="#FFE4CF" stroke-width="2.6" stroke-linecap="round" fill="none" opacity="0.95"/>
+
+        <!-- Left Audio Wave 2 -->
+        <path d="M164 322 C159 332 159 344 164 354" stroke="#FFE4CF" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+
+        <!-- Right Audio Wave 1 -->
+        <path d="M218 328 C221.5 334.5 221.5 341.5 218 348" stroke="#FFE4CF" stroke-width="2.6" stroke-linecap="round" fill="none" opacity="0.95"/>
+
+        <!-- Right Audio Wave 2 -->
+        <path d="M226 322 C231 332 231 344 226 354" stroke="#FFE4CF" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+      </g>
+    </g>
+
+    <!-- ==================== 4. BRAND TITLES & TYPOGRAPHY ==================== -->
+    <g id="Brand-Titles">
+      <!-- Main Brand Name -->
+      <text id="Title-Voice-Me" x="195" y="442" text-anchor="middle" fill="#FFF1E5" font-family="Outfit, Inter, system-ui, sans-serif" font-size="42" font-weight="900" letter-spacing="-0.5">Voice Me</text>
+
+      <!-- Nepali Tagline -->
+      <text id="Tagline-Nepali" x="195" y="478" text-anchor="middle" fill="#FFE4CF" font-family="'Noto Sans Devanagari', 'Mukta', sans-serif" font-size="18.5" font-weight="700" letter-spacing="0.2">आवाज मेरो साथी</text>
+
+      <!-- Subtitle -->
+      <text id="Subtitle-English" x="195" y="506" text-anchor="middle" fill="#FFF1E5" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="500" opacity="0.88" letter-spacing="0.1">One tap opens Voice Me</text>
+    </g>
+
+    <!-- ==================== 5. BOTTOM TAP-TO-START PROMPT ==================== -->
+    <g id="Bottom-Button-Container">
+      <!-- Pill Container -->
+      <rect id="Button-Pill" x="65" y="700" width="260" height="52" rx="26" fill="url(#btnGrad)" stroke="#FFF1E5" stroke-opacity="0.45" stroke-width="1.5"/>
+
+      <!-- Button Text -->
+      <text id="Button-Text" x="185" y="732" text-anchor="middle" fill="#FFF1E5" font-family="Inter, 'Noto Sans Devanagari', sans-serif" font-size="15" font-weight="700" letter-spacing="0.2">सुरु गर्नुहोस् · Tap to Start</text>
+
+      <!-- Arrow Icon -->
+      <path id="Button-Arrow" d="M280 722 L286 726 L280 730" stroke="#FFF1E5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+
+    <!-- ==================== 6. HOME INDICATOR BAR ==================== -->
+    <g id="Home-Indicator">
+      <rect x="127" y="826" width="136" height="5" rx="2.5" fill="#FFFFFF" fill-opacity="0.75"/>
+    </g>
+  </g>
+</svg>

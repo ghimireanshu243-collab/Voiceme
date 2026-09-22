@@ -1,0 +1,33 @@
+<svg width="390" height="844" viewBox="0 0 390 844" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Screen Frame (Figma: Splash Screen) -->
+  <g id="Splash-Screen" clip-path="url(#screenClip)">
+    <clipPath id="screenClip">
+      <rect width="390" height="844" rx="44" fill="white"/>
+    </clipPath>
+
+    <!-- Background: Authentic VoiceMe Terracotta -->
+    <rect width="390" height="844" rx="44" fill="#BC6029"/>
+
+    <!-- Central Emblem Circle: Warm Ivory/Cream -->
+    <circle id="Logo-Circle" cx="195" cy="410" r="58" fill="#F8EDE1"/>
+
+    <!-- Voice Soundwave Bars (Espresso Brown) -->
+    <g id="Soundwave-Bars" fill="#4D2311">
+      <!-- Bar 1 (Left Outer) -->
+      <rect x="166" y="393" width="6.5" height="34" rx="3.25"/>
+      <!-- Bar 2 (Left Mid) -->
+      <rect x="177.5" y="386" width="6.5" height="48" rx="3.25"/>
+      <!-- Bar 3 (Center Left Peak) -->
+      <rect x="189" y="380" width="6.5" height="60" rx="3.25"/>
+      <!-- Bar 4 (Center Right Peak) -->
+      <rect x="200.5" y="380" width="6.5" height="60" rx="3.25"/>
+      <!-- Bar 5 (Right Mid) -->
+      <rect x="212" y="386" width="6.5" height="48" rx="3.25"/>
+      <!-- Bar 6 (Right Outer) -->
+      <rect x="223.5" y="393" width="6.5" height="34" rx="3.25"/>
+    </g>
+
+    <!-- Brand Typography: Voice Me -->
+    <text id="Brand-Title" x="195" y="534" text-anchor="middle" fill="#FFFFFF" font-family="'SF Pro Display', 'Inter', -apple-system, sans-serif" font-size="44" font-weight="700" letter-spacing="-0.5">Voice Me</text>
+  </g>
+</svg>

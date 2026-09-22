@@ -1,1281 +1,792 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
+  Text,
+  TouchableOpacity,
   SafeAreaView,
-  StatusBar,
   ScrollView,
-  Pressable,
+  StatusBar,
   Platform,
-  TextInput,
-  Switch,
-  Modal,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path, Circle } from 'react-native-svg';
-import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
-interface RoutineItem {
-  id: string;
-  time: string;
-  nepaliTitle: string;
-  englishTitle: string;
-  icon: string;
-  completed: boolean;
+export interface ParentProfileScreenProps {
+  navigation?: any;
+  onBack?: () => void;
 }
 
-const ROUTINE_STORAGE_KEY = 'voiceme.daily_routine_state';
+export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
+  navigation,
+  onBack,
+}) => {
+  const [activeTab, setActiveTab] = useState<'home' | 'map' | 'log' | 'settings'>('home');
 
-const DEFAULT_ROUTINES: RoutineItem[] = [
-  { id: '1', time: '०७:३० AM', nepaliTitle: 'दाँत माझ्नु', englishTitle: 'Brush teeth', icon: '🪥', completed: true },
-  { id: '2', time: '०८:०० AM', nepaliTitle: 'बिहानको खाजा', englishTitle: 'Morning breakfast', icon: '🥣', completed: true },
-  { id: '3', time: '०८:३० AM', nepaliTitle: 'औषधि खानु', englishTitle: 'Morning medicine', icon: '💊', completed: true },
-  { id: '4', time: '१०:०० AM', nepaliTitle: 'पढाइ र सिकाइ', englishTitle: 'Learning & study', icon: '📚', completed: false },
-  { id: '5', time: '०१:०० PM', nepaliTitle: 'दिउँसोको खाना', englishTitle: 'Lunch time', icon: '🍱', completed: false },
-  { id: '6', time: '०४:३० PM', nepaliTitle: 'खेलकुद र रमाइलो', englishTitle: 'Playtime & activity', icon: '⚽', completed: false },
-  { id: '7', time: '०८:०० PM', nepaliTitle: 'साँझको खाना र सुत्ने', englishTitle: 'Dinner & bedtime', icon: '🌙', completed: false },
-];
+  const handleSosHistory = () => {
+    Alert.alert('SOS Alerts History', 'No active emergency. Last alert was 2 days ago (Safe zone reached).');
+  };
 
-export default function Parentspage() {
-  const [childName, setChildName] = useState('आरव (Aarav)');
-  const [childAge, setChildAge] = useState('७ वर्ष (7 yrs)');
-  const [selectedAvatar, setSelectedAvatar] = useState('👦');
-  const [parentName, setParentName] = useState('सिता शर्मा (Sita Sharma)');
-  const [emergencyPhone, setEmergencyPhone] = useState('९८४१११२२३३');
-  const [caregiverName, setCaregiverName] = useState('माया घिमिरे (Maya Ghimire)');
-  const [caregiverPhone, setCaregiverPhone] = useState('९८४१११२२३३');
-  const [speechRate, setSpeechRate] = useState<number>(0.95);
-  const [geofenceEnabled, setGeofenceEnabled] = useState(true);
-  const [bellPushNotification, setBellPushNotification] = useState(true);
-  const [allowCaregiverEdit, setAllowCaregiverEdit] = useState(true);
-  const [isBellActive, setIsBellActive] = useState(false);
-  const [routines, setRoutines] = useState<RoutineItem[]>(DEFAULT_ROUTINES);
-
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [saveSuccessVisible, setSaveSuccessVisible] = useState(false);
-
-  // Load existing profile & daily routines from storage once on mount
-  useEffect(() => {
-    AsyncStorage.multiGet([
-      'voiceme.registeredName',
-      'voiceme.registeredAge',
-      'voiceme.registeredAvatar',
-      'voiceme.parentName',
-      'voiceme.emergencyPhone',
-      'voiceme.caregiverName',
-      'voiceme.caregiverPhone',
-      'voiceme.speechRate',
-      'voiceme.geofenceEnabled',
-      'voiceme.bellPushNotification',
-      'voiceme.allowCaregiverEdit',
-      'voiceme.bellActive',
-      ROUTINE_STORAGE_KEY,
-    ])
-      .then((stores) => {
-        stores.forEach(([key, val]) => {
-          if (!val) return;
-          if (key === 'voiceme.registeredName') setChildName(val);
-          if (key === 'voiceme.registeredAge') setChildAge(val);
-          if (key === 'voiceme.registeredAvatar') setSelectedAvatar(val);
-          if (key === 'voiceme.parentName') setParentName(val);
-          if (key === 'voiceme.emergencyPhone') setEmergencyPhone(val);
-          if (key === 'voiceme.caregiverName') setCaregiverName(val);
-          if (key === 'voiceme.caregiverPhone') setCaregiverPhone(val);
-          if (key === 'voiceme.speechRate') setSpeechRate(parseFloat(val) || 0.95);
-          if (key === 'voiceme.geofenceEnabled') setGeofenceEnabled(val === 'true');
-          if (key === 'voiceme.bellPushNotification') setBellPushNotification(val === 'true');
-          if (key === 'voiceme.allowCaregiverEdit') setAllowCaregiverEdit(val === 'true');
-          if (key === 'voiceme.bellActive') setIsBellActive(val === 'true');
-          if (key === ROUTINE_STORAGE_KEY) {
-            try {
-              const parsed = JSON.parse(val);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setRoutines(parsed);
-              }
-            } catch {}
-          }
-        });
-      })
-      .catch(() => {});
-
-    // Only periodically poll the real-time Attention Bell alert status (never overwrite typed fields)
-    const interval = setInterval(() => {
-      AsyncStorage.getItem('voiceme.bellActive')
-        .then((val) => {
-          setIsBellActive(val === 'true');
-        })
-        .catch(() => {});
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, []);
+  const handleOpenMap = () => {
+    Alert.alert('GPS Live Location', 'Aarav is at Home (Ward 4). Coordinates: 27.7172° N, 85.3240° E. Band battery: 86%.');
+  };
 
   const handleBack = () => {
-    if (router.canGoBack()) {
+    if (onBack) {
+      onBack();
+    } else if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/Homepage');
     }
   };
 
-  const testVoice = (rate: number) => {
-    try {
-      Haptics.selectionAsync();
-    } catch {}
-    setSpeechRate(rate);
-    setIsSpeaking(true);
-
-    const spokenName = childName.replace(/\s*\([^)]*\)/g, '').trim() || 'आरव';
-    const textToSpeak = `नमस्ते, म ${spokenName} हुँ। Voice Me मा स्वागत छ।`;
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.rate = rate;
-
-        const voices = window.speechSynthesis.getVoices();
-        const nepaliOrHindiVoice = voices.find(
-          (v) => v.lang.startsWith('ne') || v.lang.startsWith('hi')
-        );
-        if (nepaliOrHindiVoice) {
-          utterance.voice = nepaliOrHindiVoice;
-          utterance.lang = nepaliOrHindiVoice.lang;
-        } else {
-          utterance.lang = 'ne-NP';
-        }
-
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-        return;
-      } catch {
-        setIsSpeaking(false);
-      }
-    }
-
-    try {
-      Speech.stop();
-      Speech.speak(textToSpeak, {
-        language: 'ne-NP',
-        pitch: 1.05,
-        rate: rate,
-        onDone: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
-      });
-    } catch {
-      setIsSpeaking(false);
-    }
-  };
-
-  const handleClearBell = async () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {}
-    setIsBellActive(false);
-    await AsyncStorage.setItem('voiceme.bellActive', 'false').catch(() => {});
-  };
-
-  const handleTriggerBell = async () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {}
-    setIsBellActive(true);
-    await AsyncStorage.setItem('voiceme.bellActive', 'true').catch(() => {});
-  };
-
-  const handleToggleRoutine = async (id: string) => {
-    try {
-      Haptics.selectionAsync();
-    } catch {}
-    const updated = routines.map((r) =>
-      r.id === id ? { ...r, completed: !r.completed } : r
-    );
-    setRoutines(updated);
-    await AsyncStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
-  };
-
-  const handleResetRoutines = async () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {}
-    const reset = routines.map((r) => ({ ...r, completed: false }));
-    setRoutines(reset);
-    await AsyncStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(reset)).catch(() => {});
-  };
-
-  const handleSaveSettings = async () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {}
-
-    try {
-      await AsyncStorage.multiSet([
-        ['voiceme.registeredName', childName.trim()],
-        ['voiceme.registeredAge', childAge.trim()],
-        ['voiceme.registeredAvatar', selectedAvatar],
-        ['voiceme.parentName', parentName.trim()],
-        ['voiceme.emergencyPhone', emergencyPhone.trim()],
-        ['voiceme.caregiverName', caregiverName.trim()],
-        ['voiceme.caregiverPhone', caregiverPhone.trim()],
-        ['voiceme.speechRate', speechRate.toString()],
-        ['voiceme.geofenceEnabled', geofenceEnabled.toString()],
-        ['voiceme.bellPushNotification', bellPushNotification.toString()],
-        ['voiceme.allowCaregiverEdit', allowCaregiverEdit.toString()],
-      ]);
-    } catch {}
-
-    setSaveSuccessVisible(true);
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
         barStyle="dark-content"
-        backgroundColor="#F5ECD9"
+        backgroundColor="#F4EFE6"
         translucent={Platform.OS === 'android'}
       />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Return to home"
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressedState]}
-          onPress={handleBack}
-        >
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 18L9 12L15 6"
-              stroke="#342419"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={styles.backButtonText}>गृहपृष्ठ · Home</Text>
-        </Pressable>
-
-        <Text style={styles.brandTitle}>Voice Me</Text>
-      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        {/* Title Header */}
-        <View style={styles.titleSection}>
-          <Text style={styles.nepaliTitle}>अभिभावक र बालबालिका</Text>
-          <Text style={styles.englishTitle}>Parents & Child Controls</Text>
-          <Text style={styles.subtitle}>
-            बालबालिकाको प्रोफाइल, आवाजको गति, सुरक्षा क्षेत्र र हेरचाहकर्ता सेटिङहरू व्यवस्थापन गर्नुहोस्
-          </Text>
-        </View>
-
-        {/* 1. Child Profile & Details */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSectionTitle}>१. बालबालिकाको प्रोफाइल (Child Profile)</Text>
-            <View style={styles.avatarPreviewDisc}>
-              <Text style={{ fontSize: 24 }}>{selectedAvatar}</Text>
-            </View>
-          </View>
-
-          {/* Child Name Input */}
-          <Text style={styles.fieldLabel}>बालबालिकाको नाम (Child's Name):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>👦</Text>
-            <TextInput
-              style={styles.textInput}
-              value={childName}
-              onChangeText={setChildName}
-              placeholder="e.g. Aarav"
-              placeholderTextColor="#8C7D70"
-            />
-          </View>
-
-          {/* Child Age Input */}
-          <Text style={styles.fieldLabel}>उमेर (Child's Age):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>🎂</Text>
-            <TextInput
-              style={styles.textInput}
-              value={childAge}
-              onChangeText={setChildAge}
-              placeholder="e.g. 7 वर्ष (7 yrs)"
-              placeholderTextColor="#8C7D70"
-            />
-          </View>
-
-          {/* Avatar selector */}
-          <Text style={styles.fieldLabel}>अवतार छान्नुहोस् (Choose Avatar):</Text>
-          <View style={styles.avatarRow}>
-            {['👦', '👧', '🧒', '🦊', '🦁', '🐼', '⭐', '🚀'].map((emoji) => (
-              <Pressable
-                key={emoji}
-                style={[
-                  styles.avatarPill,
-                  selectedAvatar === emoji && styles.avatarPillActive,
-                ]}
-                onPress={() => {
-                  try {
-                    Haptics.selectionAsync();
-                  } catch {}
-                  setSelectedAvatar(emoji);
-                }}
-              >
-                <Text style={styles.avatarEmoji}>{emoji}</Text>
-                {selectedAvatar === emoji && (
-                  <View style={styles.miniCheck}>
-                    <Text style={styles.miniCheckText}>✓</Text>
-                  </View>
-                )}
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* 2. Nepali Voice & Speech Tuning */}
-        <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>२. नेपाली आवाज सेटिङ (Nepali Speech Speed)</Text>
-          <Text style={styles.cardHint}>
-            बच्चाले सुन्ने आवाजको गति परिवर्तन गरी परीक्षण गर्नुहोस्
-          </Text>
-
-          <View style={styles.speedRow}>
-            {[
-              { label: 'सुस्त (0.8x)', rate: 0.8 },
-              { label: 'सामान्य (1.0x)', rate: 0.95 },
-              { label: 'छिटो (1.2x)', rate: 1.2 },
-            ].map((item) => (
-              <Pressable
-                key={item.rate}
-                style={[
-                  styles.speedBtn,
-                  speechRate === item.rate && styles.speedBtnActive,
-                ]}
-                onPress={() => testVoice(item.rate)}
-              >
-                <Text
-                  style={[
-                    styles.speedBtnText,
-                    speechRate === item.rate && styles.speedBtnTextActive,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Test Speech Action Button */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Test Nepali voice"
-            style={({ pressed }) => [
-              styles.testVoiceButton,
-              isSpeaking && styles.testVoiceButtonActive,
-              pressed && styles.pressedState,
-            ]}
-            onPress={() => testVoice(speechRate)}
-          >
-            <Text style={styles.testVoiceEmoji}>{isSpeaking ? '🔊' : '▶'}</Text>
-            <Text style={styles.testVoiceText}>
-              {isSpeaking ? 'आवाज बोल्दैछ... (Speaking)' : 'आवाज परीक्षण गर्नुहोस् (Test Voice)'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* 3. Safety, GPS & Bell Alerts */}
-        <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>३. सुरक्षा र चेतावनी (Safety & Alerts)</Text>
-
-          {/* Real-time Attention Bell Alert Status */}
-          <View style={[styles.bellStatusBox, isBellActive && styles.bellStatusBoxActive]}>
-            <View style={[styles.bellStatusIconBox, isBellActive && styles.bellStatusIconBoxActive]}>
-              <Text style={{ fontSize: 22 }}>{isBellActive ? '🔔' : '🔕'}</Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={[styles.bellStatusTitle, isBellActive && styles.bellStatusTitleActive]}>
-                {isBellActive ? '⚠️ ध्यान घण्टी सक्रिय छ!' : 'घण्टी स्थिति: सामान्य'}
-              </Text>
-              <Text style={styles.bellStatusSub}>
-                {isBellActive
-                  ? 'बच्चाले ध्यान घण्टी बजाउँदैछ'
-                  : 'कुनै सक्रिय घण्टी बजेको छैन'}
-              </Text>
-            </View>
-            {isBellActive ? (
-              <Pressable
-                style={styles.bellMuteBtn}
-                onPress={handleClearBell}
-              >
-                <Text style={styles.bellMuteBtnText}>घण्टी रोक्नुहोस्</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                style={styles.bellTriggerBtn}
-                onPress={handleTriggerBell}
-              >
-                <Text style={styles.bellTriggerBtnText}>घण्टी बजाउनुहोस्</Text>
-              </Pressable>
-            )}
-          </View>
-
-          <View style={[styles.toggleRow, { marginTop: 10 }]}>
-            <View style={styles.toggleTextContainer}>
-              <Text style={styles.toggleTitle}>सुरक्षित क्षेत्र चेतावनी (Geofence Alert)</Text>
-              <Text style={styles.toggleSub}>घर वा विद्यालय बाहिर जाँदा तुरुन्तै सतर्कता आउनेछ</Text>
-            </View>
-            <Switch
-              value={geofenceEnabled}
-              onValueChange={setGeofenceEnabled}
-              trackColor={{ false: '#D4C5B0', true: '#28552F' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          <View style={[styles.toggleRow, styles.toggleBorder]}>
-            <View style={styles.toggleTextContainer}>
-              <Text style={styles.toggleTitle}>घण्टी पुश सूचना (Bell Notifications)</Text>
-              <Text style={styles.toggleSub}>बच्चाले ध्यान घण्टी बजाउँदा अभिभावकलाई अलर्ट पठाउने</Text>
-            </View>
-            <Switch
-              value={bellPushNotification}
-              onValueChange={setBellPushNotification}
-              trackColor={{ false: '#D4C5B0', true: '#28552F' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-
-        {/* 4. Parent Contacts & Linked Caregiver */}
-        <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>४. अभिभावक र हेरचाहकर्ता सम्पर्क</Text>
-
-          {/* Parent Name */}
-          <Text style={styles.fieldLabel}>अभिभावकको नाम (Parent's Name):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>👤</Text>
-            <TextInput
-              style={styles.textInput}
-              value={parentName}
-              onChangeText={setParentName}
-              placeholder="e.g. Sita Sharma"
-              placeholderTextColor="#8C7D70"
-            />
-          </View>
-
-          {/* Emergency Phone */}
-          <Text style={styles.fieldLabel}>आपतकालीन सम्पर्क नम्बर (Emergency Phone):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>📞</Text>
-            <TextInput
-              style={styles.textInput}
-              value={emergencyPhone}
-              onChangeText={setEmergencyPhone}
-              placeholder="98XXXXXXXX"
-              placeholderTextColor="#8C7D70"
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          {/* Caregiver Name Input */}
-          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>हेरचाहकर्ताको नाम (Caregiver's Name):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>💚</Text>
-            <TextInput
-              style={styles.textInput}
-              value={caregiverName}
-              onChangeText={setCaregiverName}
-              placeholder="e.g. Maya Ghimire"
-              placeholderTextColor="#8C7D70"
-            />
-          </View>
-
-          {/* Caregiver Phone Input */}
-          <Text style={styles.fieldLabel}>हेरचाहकर्ताको फोन (Caregiver's Phone):</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>📱</Text>
-            <TextInput
-              style={styles.textInput}
-              value={caregiverPhone}
-              onChangeText={setCaregiverPhone}
-              placeholder="98XXXXXXXX"
-              placeholderTextColor="#8C7D70"
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          {/* Caregiver summary card */}
-          <View style={[styles.caregiverBox, { marginTop: 8 }]}>
-            <View style={styles.caregiverIcon}>
-              <Text style={{ fontSize: 24 }}>💚</Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.caregiverName}>{caregiverName || 'माया घिमिरे'}</Text>
-              <Text style={styles.caregiverRole}>प्राथमिक हेरचाहकर्ता · Primary Caregiver</Text>
-              <Text style={styles.caregiverPhone}>📞 {caregiverPhone || '९८४१११२२३३'}</Text>
-            </View>
-            <Pressable
-              style={styles.caregiverCallBtn}
-              onPress={() => {
-                router.push('/Caregiverpage');
-              }}
+        {/* Top Header Row */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeftGroup}>
+            {/* Return / Back Button */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.backButton}
+              onPress={handleBack}
+              accessibilityLabel="Return"
+              accessibilityRole="button"
             >
-              <Text style={styles.caregiverCallText}>ड्यासबोर्ड ›</Text>
-            </Pressable>
-          </View>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M15 18L9 12L15 6"
+                  stroke="#342419"
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
 
-          <View style={[styles.toggleRow, styles.toggleBorder]}>
-            <View style={styles.toggleTextContainer}>
-              <Text style={styles.toggleTitle}>दिनचर्या सम्पादन अनुमति (Edit Schedule)</Text>
-              <Text style={styles.toggleSub}>हेरचाहकर्तालाई कार्यहरू पूरा चिन्ह लगाउने अनुमति दिनुहोस्</Text>
+            {/* P Avatar Circle */}
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>P</Text>
             </View>
-            <Switch
-              value={allowCaregiverEdit}
-              onValueChange={setAllowCaregiverEdit}
-              trackColor={{ false: '#D4C5B0', true: '#28552F' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
 
-        {/* 5. Daily Routine Monitoring & Controls */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardSectionTitle}>५. दैनिक दिनचर्या अनुगमन (Daily Routine)</Text>
-              <Text style={styles.cardHint}>
-                {routines.filter((r) => r.completed).length} / {routines.length} कार्यहरू पूरा भयो (Tasks Completed)
-              </Text>
+            <View style={styles.headerTitles}>
+              <Text style={styles.greetingTitle}>अभिभावक ड्यासबोर्ड</Text>
+              <Text style={styles.greetingSubtitle}>Parent Dashboard · नियन्त्रण</Text>
             </View>
-            <Pressable
-              style={styles.routineResetBtn}
-              onPress={handleResetRoutines}
-            >
-              <Text style={styles.routineResetBtnText}>🔄 आजका कार्य रिसेट</Text>
-            </Pressable>
           </View>
 
-          {/* Routine List */}
-          <View style={styles.routineList}>
-            {routines.map((item) => (
-              <Pressable
-                key={item.id}
-                style={[
-                  styles.routineItemRow,
-                  item.completed && styles.routineItemRowCompleted,
-                ]}
-                onPress={() => handleToggleRoutine(item.id)}
-              >
-                <View style={[styles.routineCheckbox, item.completed && styles.routineCheckboxChecked]}>
-                  <Text style={[styles.routineCheckboxText, item.completed && styles.routineCheckboxTextChecked]}>
-                    {item.completed ? '✓' : ''}
-                  </Text>
-                </View>
-                <Text style={styles.routineItemIcon}>{item.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.routineItemTitle, item.completed && styles.routineItemTitleCompleted]}>
-                    {item.nepaliTitle}
-                  </Text>
-                  <Text style={styles.routineItemSub}>
-                    {item.englishTitle} · {item.time}
-                  </Text>
-                </View>
-                <Text style={[styles.routineBadge, item.completed ? styles.routineBadgeDone : styles.routineBadgePending]}>
-                  {item.completed ? 'सम्पन्न' : 'बाँकी'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Pressable
-            style={styles.openRoutinePageBtn}
-            onPress={() => router.push('/Dailyroutinepage')}
+          {/* Bell Icon with Red Notification Dot */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.bellButton}
+            onPress={() => Alert.alert('Notifications', '1 new alert: Daily routine completed at 8:05 AM')}
           >
-            <Text style={styles.openRoutinePageBtnText}>
-              📅 पूर्ण दिनचर्या तालिका खोल्नुहोस् (Open Full Schedule) ›
-            </Text>
-          </Pressable>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="#78462B">
+              <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </Svg>
+            <View style={styles.redBadgeDot} />
+          </TouchableOpacity>
         </View>
 
-        {/* 6. Quick App Navigation Hub */}
-        <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>६. द्रुत नेभिगेसन (Quick App Hub)</Text>
-          <Text style={styles.cardHint}>
-            एपका मुख्य सुविधाहरूमा सिधै जानुहोस्
-          </Text>
-
-          <View style={styles.quickNavGrid}>
-            {[
-              { title: 'गृहपृष्ठ (Home)', icon: '🏠', route: '/Homepage' as const },
-              { title: 'हेरचाहकर्ता (Caregiver)', icon: '💚', route: '/Caregiverpage' as const },
-              { title: 'दिनचर्या (Routine)', icon: '📅', route: '/Dailyroutinepage' as const },
-              { title: 'ध्यान घण्टी (Bell)', icon: '🔔', route: '/Attentionbellpage' as const },
-              { title: 'फ्ल्यासकार्ड (Cards)', icon: '🗂️', route: '/Flashcardpage' as const },
-              { title: 'दर्ता / परिवर्तन (Register)', icon: '📝', route: '/ChildRegistrationPage' as const },
-            ].map((navItem) => (
-              <Pressable
-                key={navItem.route}
-                style={styles.quickNavTile}
-                onPress={() => router.push(navItem.route)}
-              >
-                <Text style={styles.quickNavTileIcon}>{navItem.icon}</Text>
-                <Text style={styles.quickNavTileText}>{navItem.title}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Save Settings Button */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save parents and child settings"
-          style={({ pressed }) => [styles.saveButton, pressed && styles.pressedState]}
-          onPress={handleSaveSettings}
+        {/* Child Connected Pill Banner */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.childBanner}
+          onPress={() => router.push('/Childpage')}
         >
-          <Text style={styles.saveButtonText}>
-            ✓ सेटिङहरू सुरक्षित गर्नुहोस् (Save Settings)
-          </Text>
-        </Pressable>
+          <View style={styles.childBannerLeft}>
+            <View style={styles.childIconWrapper}>
+              <Text style={styles.childEmoji}>👦</Text>
+            </View>
+            <View>
+              <Text style={styles.childNameTitle}>आरव · Aarav K.</Text>
+              <Text style={styles.childMetaText}>Connected · 7 years</Text>
+            </View>
+          </View>
+
+          <View style={styles.onlineBadge}>
+            <View style={styles.greenLiveDot} />
+            <Text style={styles.onlineText}>Online</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* SOS Alert Card */}
+        <View style={styles.sosCard}>
+          <View style={styles.sosLeftRow}>
+            <View style={styles.sosCircle}>
+              <Text style={styles.sosText}>SOS</Text>
+            </View>
+            <View>
+              <Text style={styles.sosTitle}>एसओएस अलर्ट</Text>
+              <Text style={styles.sosSubtitle}>SOS alerts · none active</Text>
+              <Text style={styles.sosMeta}>Last alert: 2 days ago</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.historyButton}
+            onPress={handleSosHistory}
+          >
+            <Text style={styles.historyButtonText}>History</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* GPS Location Card (342 x 222 card) */}
+        <View style={styles.gpsCard}>
+          <View style={styles.gpsHeader}>
+            <View>
+              <Text style={styles.gpsTitle}>जीपीएस स्थान</Text>
+              <Text style={styles.gpsSubtitle}>GPS location</Text>
+            </View>
+            <View style={styles.bandBadge}>
+              <Text style={styles.bandText}>Band 86%</Text>
+            </View>
+          </View>
+
+          {/* Stylized Map View Canvas */}
+          <View style={styles.mapCanvas}>
+            <Svg width="100%" height={124} viewBox="0 0 320 124" style={StyleSheet.absoluteFill}>
+              <Rect width="320" height="124" fill="#DDEFD2" rx={18} />
+              <Path
+                d="M -10 58 Q 120 52 200 64 T 340 58"
+                stroke="#FFFFFF"
+                strokeWidth={10}
+                fill="none"
+                strokeLinecap="round"
+              />
+              <Path d="M 85 -10 L 85 140" stroke="#FFFFFF" strokeWidth={7} fill="none" />
+              <Path d="M 235 -10 L 235 140" stroke="#FFFFFF" strokeWidth={7} fill="none" />
+              <Path d="M -10 22 L 340 30" stroke="#FFFFFF" strokeWidth={5} fill="none" opacity={0.7} />
+              <Circle cx={160} cy={58} r={34} fill="#B8D6B0" opacity={0.5} />
+              <Circle cx={160} cy={58} r={22} fill="#A6CA9C" opacity={0.65} />
+            </Svg>
+
+            <View style={styles.pinWrapper}>
+              <View style={styles.redPin}>
+                <View style={styles.whitePinHole} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.gpsBottomRow}>
+            <View>
+              <Text style={styles.gpsLocationStatus}>घरमा · At home</Text>
+              <Text style={styles.gpsUpdatedTime}>Live · updated now</Text>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.openMapButton}
+              onPress={handleOpenMap}
+            >
+              <Text style={styles.openMapButtonText}>Open map</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Activity Log Section */}
+        <View style={styles.activitySection}>
+          <View style={styles.activityHeaderRow}>
+            <View style={styles.activityTitleGroup}>
+              <Text style={styles.activityTitleHindi}>गतिविधि लग</Text>
+              <Text style={styles.activityTitleEnglish}>Activity log</Text>
+            </View>
+            <TouchableOpacity onPress={() => Alert.alert('Activity Logs', 'Showing full history...')}>
+              <Text style={styles.viewAllText}>View all</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.activityList}>
+            {/* Activity 1 */}
+            <View style={styles.activityCard}>
+              <View style={styles.activityLeft}>
+                <View style={[styles.activityDotCircle, { backgroundColor: '#D9ECD4' }]}>
+                  <View style={[styles.activityDotInner, { backgroundColor: '#4C7D44' }]} />
+                </View>
+                <View>
+                  <Text style={styles.activityItemTitle}>घर आइपुग्यो</Text>
+                  <Text style={styles.activityItemSubtitle}>Arrived home</Text>
+                </View>
+              </View>
+              <Text style={styles.activityTime}>12:45 PM</Text>
+            </View>
+
+            {/* Activity 2 */}
+            <View style={styles.activityCard}>
+              <View style={styles.activityLeft}>
+                <View style={[styles.activityDotCircle, { backgroundColor: '#FBE4D4' }]}>
+                  <View style={[styles.activityDotInner, { backgroundColor: '#A25F39' }]} />
+                </View>
+                <View>
+                  <Text style={styles.activityItemTitle}>ध्यान घण्टी थिचियो</Text>
+                  <Text style={styles.activityItemSubtitle}>Attention bell tapped</Text>
+                </View>
+              </View>
+              <Text style={styles.activityTime}>9:15 AM</Text>
+            </View>
+
+            {/* Activity 3 */}
+            <View style={styles.activityCard}>
+              <View style={styles.activityLeft}>
+                <View style={[styles.activityDotCircle, { backgroundColor: '#FBE4D4' }]}>
+                  <View style={[styles.activityDotInner, { backgroundColor: '#A25F39' }]} />
+                </View>
+                <View>
+                  <Text style={styles.activityItemTitle}>फ्ल्यासकार्ड अभ्यास</Text>
+                  <Text style={styles.activityItemSubtitle}>Flashcards · 12 cards</Text>
+                </View>
+              </View>
+              <Text style={styles.activityTime}>8:40 AM</Text>
+            </View>
+
+            {/* Activity 4 */}
+            <View style={styles.activityCard}>
+              <View style={styles.activityLeft}>
+                <View style={[styles.activityDotCircle, { backgroundColor: '#FBE4D4' }]}>
+                  <View style={[styles.activityDotInner, { backgroundColor: '#A25F39' }]} />
+                </View>
+                <View>
+                  <Text style={styles.activityItemTitle}>दैनिक दिनचर्या पूरा</Text>
+                  <Text style={styles.activityItemSubtitle}>Routine · brushed teeth</Text>
+                </View>
+              </View>
+              <Text style={styles.activityTime}>8:05 AM</Text>
+            </View>
+          </View>
+
+          {/* Bottom Return Button */}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            style={styles.bottomReturnBtn}
+            onPress={handleBack}
+          >
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 18L9 12L15 6"
+                stroke="#342419"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+            <Text style={styles.bottomReturnBtnText}>गृहपृष्ठमा फर्कनुहोस् · Return to Home</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* Success Modal Confirmation Dialog */}
-      <Modal
-        visible={saveSuccessVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSaveSuccessVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setSaveSuccessVisible(false)}
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.navTab}
+          onPress={() => {
+            setActiveTab('home');
+            handleBack();
+          }}
         >
-          <View style={styles.successCard}>
-            <View style={styles.successIconCircle}>
-              <Text style={styles.successIconEmoji}>✓</Text>
-            </View>
-
-            <Text style={styles.successTitleNe}>सेटिङहरू सुरक्षित भयो!</Text>
-            <Text style={styles.successTitleEn}>Settings Saved Successfully</Text>
-
-            <Text style={styles.successDesc}>
-              बालबालिकाको नाम, अवतार र सबै अभिभावक प्राथमिकताहरू सुरक्षित गरियो।
-            </Text>
-
-            <View style={styles.modalActionRow}>
-              <Pressable
-                style={styles.homeActionButton}
-                onPress={() => {
-                  setSaveSuccessVisible(false);
-                  router.replace('/Homepage');
-                }}
-              >
-                <Text style={styles.homeActionText}>गृहपृष्ठ जानुहोस् · Go to Home</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.stayActionButton}
-                onPress={() => setSaveSuccessVisible(false)}
-              >
-                <Text style={styles.stayActionText}>यहाँ नै बस्नुहोस् · Stay Here</Text>
-              </Pressable>
-            </View>
+          <View style={[styles.tabPill, activeTab === 'home' && styles.tabPillActive]}>
+            <View style={[styles.tabDot, { backgroundColor: activeTab === 'home' ? '#2E5A2A' : '#9E9184' }]} />
           </View>
-        </Pressable>
-      </Modal>
+          <Text style={[styles.tabLabelHindi, activeTab === 'home' && styles.tabLabelActive]}>
+            गृह
+          </Text>
+          <Text style={[styles.tabLabelEnglish, activeTab === 'home' && styles.tabLabelActive]}>
+            Home
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.navTab}
+          onPress={() => {
+            setActiveTab('map');
+            handleOpenMap();
+          }}
+        >
+          <View style={[styles.tabPill, activeTab === 'map' && styles.tabPillActive]}>
+            <View style={[styles.tabDot, { backgroundColor: activeTab === 'map' ? '#2E5A2A' : '#9E9184' }]} />
+          </View>
+          <Text style={[styles.tabLabelHindi, activeTab === 'map' && styles.tabLabelActive]}>नक्सा</Text>
+          <Text style={[styles.tabLabelEnglish, activeTab === 'map' && styles.tabLabelActive]}>Map</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.navTab}
+          onPress={() => {
+            setActiveTab('log');
+            Alert.alert('गतिविधि लग (Activity Logs)', 'आरवको आजको पूर्ण गतिविधि इतिहास:\n• 12:45 PM - घर आइपुग्यो\n• 09:15 AM - ध्यान घण्टी थिचियो\n• 08:40 AM - फ्ल्यासकार्ड अभ्यास (१२ कार्ड)\n• 08:05 AM - दिनचर्या पूरा');
+          }}
+        >
+          <View style={[styles.tabPill, activeTab === 'log' && styles.tabPillActive]}>
+            <View style={[styles.tabDot, { backgroundColor: activeTab === 'log' ? '#2E5A2A' : '#9E9184' }]} />
+          </View>
+          <Text style={[styles.tabLabelHindi, activeTab === 'log' && styles.tabLabelActive]}>लग</Text>
+          <Text style={[styles.tabLabelEnglish, activeTab === 'log' && styles.tabLabelActive]}>Log</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.navTab}
+          onPress={() => {
+            setActiveTab('settings');
+            Alert.alert('अभिभावक सेटिङ (Parent Settings)', 'तपाईं के सम्पादन गर्न चाहनुहुन्छ?', [
+              { text: 'बच्चाको आवाज प्रोफाइल (Child AAC Page)', onPress: () => router.push('/Childpage') },
+              { text: 'हेरचाहकर्ता ड्यासबोर्ड (Caregiver)', onPress: () => router.push('/Caregiverpage') },
+              { text: 'रद्द गर्नुहोस् (Cancel)', style: 'cancel' },
+            ]);
+          }}
+        >
+          <View style={[styles.tabPill, activeTab === 'settings' && styles.tabPillActive]}>
+            <View style={[styles.tabDot, { backgroundColor: activeTab === 'settings' ? '#2E5A2A' : '#9E9184' }]} />
+          </View>
+          <Text style={[styles.tabLabelHindi, activeTab === 'settings' && styles.tabLabelActive]}>सेटिङ</Text>
+          <Text style={[styles.tabLabelEnglish, activeTab === 'settings' && styles.tabLabelActive]}>Settings</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
-}
+};
+
+export default ParentProfileScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5ECD9',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EAE0CE',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    columnGap: 6,
-  },
-  backButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#342419',
-  },
-  brandTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#4B2419',
+    backgroundColor: '#F4EFE6',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 36,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 12,
   },
-  titleSection: {
-    marginVertical: 12,
-  },
-  nepaliTitle: {
-    fontSize: 27,
-    fontWeight: '900',
-    color: '#342419',
-    letterSpacing: -0.4,
-  },
-  englishTitle: {
-    fontSize: 16.5,
-    fontWeight: '800',
-    color: '#8C461F',
-    marginTop: 2,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#76675B',
-    marginTop: 4,
-    lineHeight: 18.5,
-  },
-  card: {
-    backgroundColor: '#FFFDF9',
-    borderRadius: 22,
-    padding: 16,
-    marginVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E8DED2',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 1.5,
-      },
-    }),
-  },
-  cardHeaderRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingVertical: 4,
   },
-  cardSectionTitle: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: '#342419',
-    marginBottom: 8,
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  cardHint: {
-    fontSize: 12,
-    color: '#76675B',
-    marginBottom: 12,
-  },
-  avatarPreviewDisc: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F7EDE1',
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EAE0CE',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#8C461F',
   },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#5C4A3E',
-    marginBottom: 6,
-    marginTop: 6,
-  },
-  inputContainer: {
+  bottomReturnBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6EFE6',
+    justifyContent: 'center',
+    backgroundColor: '#EAE0CE',
+    borderWidth: 1.5,
+    borderColor: '#DAC9B8',
+    paddingVertical: 13,
     borderRadius: 14,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2D5C7',
+    marginTop: 14,
+    columnGap: 8,
   },
-  inputIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  textInput: {
-    flex: 1,
-    height: 42,
+  bottomReturnBtnText: {
     fontSize: 14,
+    fontWeight: '700',
     color: '#342419',
-    fontWeight: '600',
   },
-  avatarRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-    marginBottom: 6,
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#D7E8D3',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarPill: {
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#285325',
+  },
+  headerTitles: {
+    justifyContent: 'center',
+  },
+  greetingTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#281E15',
+    letterSpacing: -0.2,
+  },
+  greetingSubtitle: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#76675B',
+    marginTop: 1,
+  },
+  bellButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F5ECE0',
+    backgroundColor: '#F6E6D8',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
     position: 'relative',
   },
-  avatarPillActive: {
-    borderColor: '#8C461F',
-    backgroundColor: '#FDEAE0',
-  },
-  avatarEmoji: {
-    fontSize: 22,
-  },
-  miniCheck: {
+  redBadgeDot: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#28552F',
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#C52828',
+    borderWidth: 2,
+    borderColor: '#F6E6D8',
   },
-  miniCheckText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  speedRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  speedBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    backgroundColor: '#F4EDE1',
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  speedBtnActive: {
-    backgroundColor: '#8C461F',
-    borderColor: '#733716',
-  },
-  speedBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#54251B',
-  },
-  speedBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  testVoiceButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EBE2D3',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    columnGap: 8,
-    borderWidth: 1,
-    borderColor: '#DACDBE',
-  },
-  testVoiceButtonActive: {
-    backgroundColor: '#28552F',
-    borderColor: '#28552F',
-  },
-  testVoiceEmoji: {
-    fontSize: 15,
-  },
-  testVoiceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#342419',
-  },
-  toggleRow: {
+  childBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    backgroundColor: '#DBEBD7',
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  toggleBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0E7DA',
-    marginTop: 6,
-  },
-  toggleTextContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  toggleTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#342419',
-  },
-  toggleSub: {
-    fontSize: 11.5,
-    color: '#76675B',
-    marginTop: 2,
-  },
-  caregiverBox: {
+  childBannerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF7EC',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#D7EACF',
+    gap: 10,
   },
-  caregiverIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#D7EACF',
+  childIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EAE1D2',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  caregiverName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#28552F',
+  childEmoji: {
+    fontSize: 18,
   },
-  caregiverRole: {
-    fontSize: 11,
-    color: '#4B6B4F',
+  childNameTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#22381F',
+  },
+  childMetaText: {
+    fontSize: 11.5,
+    color: '#557251',
+    fontWeight: '500',
     marginTop: 1,
   },
-  caregiverPhone: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#28552F',
-    marginTop: 2,
-  },
-  caregiverCallBtn: {
-    backgroundColor: '#DDEED7',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BEDBB7',
-  },
-  caregiverCallText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#28552F',
-  },
-  saveButton: {
-    backgroundColor: '#28552F',
-    borderRadius: 20,
-    paddingVertical: 16,
+  onlineBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    gap: 6,
+    paddingRight: 4,
   },
-  saveButtonText: {
+  greenLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#358231',
+  },
+  onlineText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#265C23',
+  },
+  sosCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FDE7DC',
+    borderRadius: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F6D4C2',
+  },
+  sosLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  sosCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#C22828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosText: {
     color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  sosTitle: {
     fontSize: 15.5,
     fontWeight: '800',
-    letterSpacing: 0.2,
+    color: '#762B1A',
   },
-  pressedState: {
-    opacity: 0.82,
-    transform: [{ scale: 0.985 }],
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  successCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#FFFDF9',
-    borderRadius: 28,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8DED2',
-    elevation: 8,
-  },
-  successIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#28552F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  successIconEmoji: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-  successTitleNe: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#342419',
-    textAlign: 'center',
-  },
-  successTitleEn: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#8C461F',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  successDesc: {
-    fontSize: 13,
-    color: '#76675B',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  modalActionRow: {
-    width: '100%',
-    rowGap: 10,
-  },
-  homeActionButton: {
-    backgroundColor: '#28552F',
-    borderRadius: 16,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  homeActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  stayActionButton: {
-    backgroundColor: '#EFE5D6',
-    borderRadius: 16,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  stayActionText: {
-    color: '#4B2419',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bellStatusBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F7EFE4',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8D9C8',
-  },
-  bellStatusBoxActive: {
-    backgroundColor: '#FDECE4',
-    borderColor: '#E8A382',
-  },
-  bellStatusIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#EDE1D2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellStatusIconBoxActive: {
-    backgroundColor: '#FAD8C8',
-  },
-  bellStatusTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#342419',
-  },
-  bellStatusTitleActive: {
-    color: '#BA3A10',
-  },
-  bellStatusSub: {
-    fontSize: 11.5,
-    color: '#76675B',
-    marginTop: 2,
-  },
-  bellMuteBtn: {
-    backgroundColor: '#BA3A10',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  bellMuteBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '800',
-  },
-  bellTriggerBtn: {
-    backgroundColor: '#8C461F',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  bellTriggerBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '800',
-  },
-  routineResetBtn: {
-    backgroundColor: '#F3E9DA',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2D3C0',
-  },
-  routineResetBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#5C4A3E',
-  },
-  routineList: {
-    marginTop: 4,
-    marginBottom: 10,
-    rowGap: 8,
-  },
-  routineItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F7EFE4',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E8DC CD',
-    columnGap: 10,
-  },
-  routineItemRowCompleted: {
-    backgroundColor: '#EDF5EB',
-    borderColor: '#CBE2C8',
-  },
-  routineCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#8C7D70',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  routineCheckboxChecked: {
-    backgroundColor: '#28552F',
-    borderColor: '#28552F',
-  },
-  routineCheckboxText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: 'transparent',
-  },
-  routineCheckboxTextChecked: {
-    color: '#FFFFFF',
-  },
-  routineItemIcon: {
-    fontSize: 20,
-  },
-  routineItemTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#342419',
-  },
-  routineItemTitleCompleted: {
-    color: '#28552F',
-    textDecorationLine: 'line-through',
-  },
-  routineItemSub: {
-    fontSize: 11,
-    color: '#76675B',
+  sosSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#894634',
     marginTop: 1,
   },
-  routineBadge: {
+  sosMeta: {
     fontSize: 11,
-    fontWeight: '700',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
+    color: '#A26959',
+    marginTop: 1,
   },
-  routineBadgeDone: {
-    backgroundColor: '#D7EACF',
-    color: '#28552F',
+  historyButton: {
+    backgroundColor: '#FAF5EE',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 16,
   },
-  routineBadgePending: {
-    backgroundColor: '#EBE2D3',
-    color: '#76675B',
-  },
-  openRoutinePageBtn: {
-    backgroundColor: '#EFE5D6',
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DED1C0',
-  },
-  openRoutinePageBtnText: {
+  historyButtonText: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: '#54251B',
+    color: '#6F3D29',
   },
-  quickNavGrid: {
+  gpsCard: {
+    backgroundColor: '#D3E8C8',
+    borderRadius: 26,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#C3DDB6',
+    gap: 10,
+  },
+  gpsHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  gpsTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#22391F',
+  },
+  gpsSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#4C6847',
+    marginTop: 1,
+  },
+  bandBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  bandText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#355231',
+  },
+  mapCanvas: {
+    height: 124,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CADFC0',
+  },
+  pinWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  redPin: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#CE2929',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  whitePinHole: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#FFFFFF',
+  },
+  gpsBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 2,
+  },
+  gpsLocationStatus: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1B3218',
+  },
+  gpsUpdatedTime: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#466642',
+    marginTop: 1,
+  },
+  openMapButton: {
+    backgroundColor: '#274E28',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+  },
+  openMapButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  activitySection: {
     gap: 8,
     marginTop: 4,
   },
-  quickNavTile: {
-    width: '48%',
-    flexGrow: 1,
+  activityHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6EFE6',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5D8C9',
-    columnGap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
   },
-  quickNavTileIcon: {
-    fontSize: 18,
+  activityTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
-  quickNavTileText: {
+  activityTitleHindi: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#322317',
+  },
+  activityTitleEnglish: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7A6B5F',
+  },
+  viewAllText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#342419',
-    flex: 1,
+    color: '#3B6636',
+  },
+  activityList: {
+    gap: 8,
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF6EE',
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ECE2D2',
+  },
+  activityLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activityDotCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  activityItemTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2F2116',
+  },
+  activityItemSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#7A6A5C',
+    marginTop: 1,
+  },
+  activityTime: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#8C7E72',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#F4EFE6',
+    borderTopWidth: 1,
+    borderTopColor: '#EAE0D2',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  navTab: {
+    alignItems: 'center',
+    gap: 2,
+    minWidth: 60,
+  },
+  tabPill: {
+    width: 38,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabPillActive: {
+    backgroundColor: '#CEE3D0',
+    width: 52,
+  },
+  tabDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  tabLabelHindi: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#665749',
+  },
+  tabLabelEnglish: {
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#867667',
+    marginTop: -2,
+  },
+  tabLabelActive: {
+    fontWeight: '800',
+    color: '#2A5226',
   },
 });
-
