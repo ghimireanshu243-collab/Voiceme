@@ -26,7 +26,11 @@ export default function RoleSelectionpage() {
 
   const selectRole = async (role: "user" | "caregiver") => {
     await AsyncStorage.setItem(SELECTED_ROLE_KEY, role);
-    router.replace("/Homepage");
+    if (role === "caregiver") {
+      router.replace("/CaregiverRegistrationPage");
+    } else {
+      router.replace("/ChildRegistrationPage");
+    }
   };
 
   return (

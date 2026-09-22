@@ -6,4 +6,5 @@ urlpatterns = [
     path('api/', include('authentication.urls')),
     path('api/', include('flashcards.urls')),
     path('api/', include('attentionbell.urls')),
+    path('api/', include('dashboard.urls')),
 ]

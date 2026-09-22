@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E8DC CD',
+    borderColor: '#E8DCCD',
     columnGap: 10,
   },
   routineItemRowCompleted: {

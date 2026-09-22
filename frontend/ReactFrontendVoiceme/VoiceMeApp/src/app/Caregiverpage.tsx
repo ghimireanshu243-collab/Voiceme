@@ -28,6 +28,10 @@ interface RoutineItem {
 }
 
 const ROUTINE_STORAGE_KEY = 'voiceme.daily_routine_state';
+const AUTH_TOKEN_KEY = 'voiceme.authToken';
+const API_BASE_URL = Platform.OS === 'android'
+  ? 'http://10.0.2.2:8000'
+  : 'http://localhost:8000';
 
 const DEFAULT_ROUTINES: RoutineItem[] = [
   {
@@ -100,6 +104,7 @@ export default function Caregiverpage() {
   const [isBellActive, setIsBellActive] = useState(false);
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(true);
   const [routines, setRoutines] = useState<RoutineItem[]>(DEFAULT_ROUTINES);
+  const [isConnected, setIsConnected] = useState(false);
 
   const completedCount = routines.filter((r) => r.completed).length;
   const progressPercent = routines.length > 0 ? Math.round((completedCount / routines.length) * 100) : 0;
@@ -156,6 +161,32 @@ export default function Caregiverpage() {
         }
       })
       .catch(() => {});
+
+    // The backend is the real link between this caregiver's account and the
+    // child they connected to via CaregiverRegistrationPage's code; the
+    // AsyncStorage values above are just same-device fallbacks/cache.
+    (async () => {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/caregiver/dashboard/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+
+        const child = await res.json();
+        setIsConnected(true);
+        if (child.name?.trim()) setChildName(child.name.trim());
+        if (child.age?.trim()) setChildAge(child.age.trim());
+        if (child.avatar?.trim()) setChildAvatar(child.avatar.trim());
+        if (child.parent?.name) setParentName(child.parent.name);
+        if (child.parent?.phone) setEmergencyPhone(child.parent.phone);
+        if (child.caregiver?.name) setCaregiverName(child.caregiver.name);
+      } catch {
+        // Offline or backend unreachable: keep whatever is currently shown.
+      }
+    })();
 
     // Only periodically poll the real-time Attention Bell alert status
     const interval = setInterval(() => {
@@ -373,6 +404,17 @@ export default function Caregiverpage() {
             बालबालिकाको प्रत्यक्ष सुरक्षा, आवाज सन्देश र दिनचर्या निगरानी
           </Text>
         </View>
+
+        {!isConnected && (
+          <View style={styles.notConnectedBanner}>
+            <Text style={styles.notConnectedText}>
+              ⚠️ अझै कुनै बालबालिकासँग जोडिएको छैन। अभिभावकको जोड्ने कोड प्रयोग गरेर पुनः दर्ता गर्नुहोस्।
+            </Text>
+            <Text style={styles.notConnectedSubText}>
+              Not connected to a child yet — register again with the parent's connect code.
+            </Text>
+          </View>
+        )}
 
         {/* 1. Child Live Status Card */}
         <View style={styles.childStatusCard}>
@@ -660,6 +702,25 @@ const styles = StyleSheet.create({
     color: '#76675B',
     marginTop: 4,
     lineHeight: 18.5,
+  },
+  notConnectedBanner: {
+    backgroundColor: '#FDECEA',
+    borderWidth: 1,
+    borderColor: '#F5C2BC',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  notConnectedText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8F2F22',
+    lineHeight: 18,
+  },
+  notConnectedSubText: {
+    fontSize: 11.5,
+    color: '#8F2F22',
+    marginTop: 3,
   },
   childStatusCard: {
     backgroundColor: '#FFFFFF',
