@@ -1,679 +1,406 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   StyleSheet,
-  View,
   Text,
+  View,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
   StatusBar,
-  Platform,
-  Alert,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
-import * as Speech from 'expo-speech';
-import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Circle } from 'react-native-svg';
 
-interface AacCard {
-  id: string;
-  emoji: string;
-  nepali: string;
-  english: string;
-  speakText: string;
-  category: 'needs' | 'food' | 'emotions' | 'actions';
-  bgColor: string;
-  borderColor: string;
+interface ChildProfileProps {
+  onBackPress?: () => void;
+  onViewLocationHistory?: () => void;
+  onEditProfile?: () => void;
 }
 
-const AAC_CARDS: AacCard[] = [
-  // Immediate Needs
-  {
-    id: 'water',
-    emoji: '💧',
-    nepali: 'पानी पिउनु छ',
-    english: 'Want water',
-    speakText: 'मलाई पानी पिउनु छ।',
-    category: 'food',
-    bgColor: '#E3F2FD',
-    borderColor: '#90CAF9',
-  },
-  {
-    id: 'food',
-    emoji: '🍲',
-    nepali: 'भोक लाग्यो / खाना',
-    english: 'Hungry / Food',
-    speakText: 'मलाई भोक लाग्यो, खाना खानु छ।',
-    category: 'food',
-    bgColor: '#FFF3E0',
-    borderColor: '#FFCC80',
-  },
-  {
-    id: 'toilet',
-    emoji: '🚻',
-    nepali: 'शौचालय जानु छ',
-    english: 'Need toilet',
-    speakText: 'मलाई शौचालय जानु छ।',
-    category: 'needs',
-    bgColor: '#F3E5F5',
-    borderColor: '#CE93D8',
-  },
-  {
-    id: 'help',
-    emoji: '🆘',
-    nepali: 'मद्दत गर्नुहोस्',
-    english: 'Help me',
-    speakText: 'कृपया मलाई मद्दत गर्नुहोस्।',
-    category: 'needs',
-    bgColor: '#FFEBEE',
-    borderColor: '#EF9A9A',
-  },
-  {
-    id: 'happy',
-    emoji: '😊',
-    nepali: 'म खुशी छु',
-    english: 'I am happy',
-    speakText: 'म धेरै खुशी छु।',
-    category: 'emotions',
-    bgColor: '#E8F5E9',
-    borderColor: '#A5D6A7',
-  },
-  {
-    id: 'hurt',
-    emoji: '🤕',
-    nepali: 'मलाई दुख्यो',
-    english: 'I am in pain',
-    speakText: 'मलाई दुख्यो, असहज भयो।',
-    category: 'emotions',
-    bgColor: '#FBE9E7',
-    borderColor: '#FFAB91',
-  },
-  {
-    id: 'sleepy',
-    emoji: '🥱',
-    nepali: 'निन्द्रा लाग्यो',
-    english: 'Sleepy / Tired',
-    speakText: 'मलाई निन्द्रा लाग्यो, आराम गर्न चाहन्छु।',
-    category: 'needs',
-    bgColor: '#EDE7F6',
-    borderColor: '#B39DDB',
-  },
-  {
-    id: 'yes',
-    emoji: '👍',
-    nepali: 'हुन्छ / ठीक छ',
-    english: 'Yes / Okay',
-    speakText: 'हुन्छ, ठीक छ।',
-    category: 'actions',
-    bgColor: '#E8F8F5',
-    borderColor: '#A2D9CE',
-  },
-  {
-    id: 'no',
-    emoji: '✋',
-    nepali: 'हुँदैन / रोक्नुहोस्',
-    english: 'No / Stop',
-    speakText: 'नाइँ, मलाई यो मन परेन।',
-    category: 'actions',
-    bgColor: '#FDEDEC',
-    borderColor: '#F5B7B1',
-  },
-  {
-    id: 'mom',
-    emoji: '👩‍👦',
-    nepali: 'आमा चाहियो',
-    english: 'Want Mom',
-    speakText: 'मलाई आमा बोलाउनुहोस्।',
-    category: 'needs',
-    bgColor: '#FCE4EC',
-    borderColor: '#F48FB1',
-  },
-  {
-    id: 'play',
-    emoji: '⚽',
-    nepali: 'खेल्न मन लाग्यो',
-    english: 'Want to play',
-    speakText: 'मलाई खेल्न मन लाग्यो।',
-    category: 'actions',
-    bgColor: '#FFFDE7',
-    borderColor: '#FFF59D',
-  },
-  {
-    id: 'home',
-    emoji: '🏠',
-    nepali: 'घर जाऔं',
-    english: 'Go home',
-    speakText: 'मलाई घर जान मन छ।',
-    category: 'actions',
-    bgColor: '#E0F2F1',
-    borderColor: '#80CBC4',
-  },
-];
-
-export default function Childpage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [currentSpeech, setCurrentSpeech] = useState<string>('मलाई पानी पिउनु छ।');
-  const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
-  const [childName, setChildName] = useState('आरव (Aarav)');
-  const [childAvatar, setChildAvatar] = useState('👦');
-
-  useEffect(() => {
-    AsyncStorage.multiGet(['voiceme.registeredName', 'voiceme.registeredAvatar'])
-      .then((entries) => {
-        if (entries[0][1]?.trim()) setChildName(entries[0][1].trim());
-        if (entries[1][1]?.trim()) setChildAvatar(entries[1][1].trim());
-      })
-      .catch(() => {});
-  }, []);
-
-  const speakPhrase = (phrase: string, cardId?: string) => {
-    if (cardId) setActiveCardId(cardId);
-    setCurrentSpeech(phrase);
-    setIsSpeaking(true);
-
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    } catch {}
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(phrase);
-        utterance.rate = 0.9;
-        utterance.pitch = 1.05;
-        utterance.lang = 'ne-NP';
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          setActiveCardId(null);
-        };
-        utterance.onerror = () => {
-          setIsSpeaking(false);
-          setActiveCardId(null);
-        };
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        setIsSpeaking(false);
-        setActiveCardId(null);
-      }
+export const ChildProfileScreen: React.FC<ChildProfileProps> = ({
+  onBackPress,
+  onViewLocationHistory,
+  onEditProfile,
+}) => {
+  const handleBack = () => {
+    if (onBackPress) {
+      onBackPress();
+    } else if (router.canGoBack()) {
+      router.back();
     } else {
-      try {
-        Speech.stop();
-        Speech.speak(phrase, {
-          language: 'ne-NP',
-          pitch: 1.05,
-          rate: 0.9,
-          onDone: () => {
-            setIsSpeaking(false);
-            setActiveCardId(null);
-          },
-          onError: () => {
-            setIsSpeaking(false);
-            setActiveCardId(null);
-          },
-        });
-      } catch {
-        setIsSpeaking(false);
-        setActiveCardId(null);
-      }
+      router.replace('/Homepage');
     }
   };
 
-  const handleClearSpeech = () => {
-    setCurrentSpeech('');
-    setActiveCardId(null);
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+  const handleViewLocationHistory = () => {
+    if (onViewLocationHistory) {
+      onViewLocationHistory();
     } else {
-      Speech.stop();
+      router.push('/Homepage');
     }
-    setIsSpeaking(false);
   };
 
-  const filteredCards = selectedCategory === 'all'
-    ? AAC_CARDS
-    : AAC_CARDS.filter((c) => c.category === selectedCategory);
+  const handleEditProfile = () => {
+    if (onEditProfile) {
+      onEditProfile();
+    } else {
+      router.push('/ChildRegistrationPage');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F4EFE6" />
-
-      {/* Header with return and child info */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.replace('/Homepage');
-          }}
-          style={styles.backButton}
-          accessibilityLabel="Return to homepage"
-        >
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 18L9 12L15 6"
-              stroke="#342419"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitleHindi}>मेरो आवाज (Voice Me AAC)</Text>
-          <Text style={styles.headerSubtitle}>आवाज साथी · Tap cards to speak</Text>
-        </View>
-
-        <View style={styles.childAvatarPill}>
-          <Text style={styles.avatarEmoji}>{childAvatar}</Text>
-          <Text style={styles.avatarName}>{childName.split(' ')[0]}</Text>
-        </View>
-      </View>
-
-      {/* Current Speech / Sentence Bar */}
-      <View style={styles.speechBarCard}>
-        <View style={styles.speechBarLeft}>
-          <View style={[styles.speakerIconCircle, isSpeaking && styles.speakerSpeaking]}>
-            <Text style={styles.speakerEmoji}>{isSpeaking ? '🔊' : '🗣️'}</Text>
-          </View>
-          <Text style={styles.speechText}>
-            {currentSpeech || 'कुनै कार्ड छान्नुहोस् (Tap a card)...'}
-          </Text>
-        </View>
-
-        <View style={styles.speechActionRow}>
-          {currentSpeech ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.speakAgainBtn}
-              onPress={() => speakPhrase(currentSpeech)}
-            >
-              <Text style={styles.speakAgainBtnText}>बजाउनुहोस् (Speak)</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {currentSpeech ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.clearBtn}
-              onPress={handleClearSpeech}
-            >
-              <Text style={styles.clearBtnText}>✕</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Category Selection Tabs */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryScroll}
-      >
-        {[
-          { key: 'all', label: '🌟 सबै (All)' },
-          { key: 'food', label: '🍲 खानपिन (Food)' },
-          { key: 'needs', label: '🚻 आवश्यकता (Needs)' },
-          { key: 'emotions', label: '😊 भावना (Feelings)' },
-          { key: 'actions', label: '⚽ काम (Actions)' },
-        ].map((tab) => {
-          const isActive = selectedCategory === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              activeOpacity={0.75}
-              style={[styles.categoryTab, isActive && styles.categoryTabActive]}
-              onPress={() => setSelectedCategory(tab.key)}
-            >
-              <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* AAC Communication Grid */}
-      <ScrollView
-        contentContainerStyle={styles.gridContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.cardsGrid}>
-          {filteredCards.map((card) => {
-            const isSelected = activeCardId === card.id;
-            return (
-              <TouchableOpacity
-                key={card.id}
-                activeOpacity={0.7}
-                style={[
-                  styles.aacCard,
-                  { backgroundColor: card.bgColor, borderColor: card.borderColor },
-                  isSelected && styles.aacCardActive,
-                ]}
-                onPress={() => speakPhrase(card.speakText, card.id)}
-              >
-                <View style={styles.cardIconBox}>
-                  <Text style={styles.cardEmoji}>{card.emoji}</Text>
-                </View>
-                <Text style={styles.cardNepaliText}>{card.nepali}</Text>
-                <Text style={styles.cardEnglishText}>{card.english}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        {/* Navigation Top Bar */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Return to Homepage"
+            accessibilityRole="button"
+          >
+            <Text style={styles.backChevron}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Child Profile</Text>
         </View>
 
-        {/* Quick Help SOS Bar */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.emergencyBar}
-          onPress={() => speakPhrase('मलाई तुरुन्तै सहयोग चाहियो, आमा यता आउनुहोस्!')}
-        >
-          <View style={styles.emergencyIconWrapper}>
-            <Text style={{ fontSize: 24 }}>🚨</Text>
+        {/* Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarEmoji}>👦</Text>
           </View>
-          <View style={styles.emergencyTextCol}>
-            <Text style={styles.emergencyTitle}>आपतकालीन सहायता (Emergency Help)</Text>
-            <Text style={styles.emergencySub}>Tap to call parent or alert caregiver</Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.nameHindi}>आरव</Text>
+            <Text style={styles.nameSub}>Aarav K. • 7 years</Text>
+            <Text style={styles.managedBy}>Profile managed by parent</Text>
           </View>
-          <View style={styles.emergencyPill}>
-            <Text style={styles.emergencyPillText}>बोल्नुहोस् (Alert)</Text>
-          </View>
-        </TouchableOpacity>
+        </View>
 
-        {/* Bottom Return Button */}
-        <TouchableOpacity
-          activeOpacity={0.75}
-          style={styles.bottomReturnBtn}
-          onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.replace('/Homepage');
-          }}
-        >
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 18L9 12L15 6"
-              stroke="#342419"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={styles.bottomReturnBtnText}>गृहपृष्ठमा फर्कनुहोस् · Return to Home</Text>
-        </TouchableOpacity>
+        {/* Current Location Card */}
+        <View style={styles.locationCard}>
+          <Text style={styles.sectionTitle}>Current location</Text>
+
+          {/* Map Graphic with Curved Road Path */}
+          <View style={styles.mapContainer}>
+            <Svg height="100%" width="100%" viewBox="0 0 320 120" style={StyleSheet.absoluteFill}>
+              {/* Smooth S-curve route */}
+              <Path
+                d="M 0 75 Q 80 85 130 65 T 220 40 T 320 70"
+                fill="none"
+                stroke="#B8BEB2"
+                strokeWidth="8"
+                strokeLinecap="round"
+              />
+              {/* Location marker halo & active pin dot */}
+              <Circle cx="150" cy="55" r="14" fill="rgba(189, 94, 46, 0.22)" />
+              <Circle cx="150" cy="55" r="10" fill="#BD5E2E" />
+            </Svg>
+
+            {/* Location Badge */}
+            <View style={styles.mapLabelRow}>
+              <Text style={styles.pinIcon}>📍</Text>
+              <Text style={styles.mapLabelText}>At home</Text>
+            </View>
+          </View>
+
+          <Text style={styles.updatedText}>Updated 2 minutes ago</Text>
+        </View>
+
+        {/* Caregiver Information Row */}
+        <View style={styles.caregiverRow}>
+          {/* Caregiver Name Card */}
+          <View style={[styles.caregiverCard, styles.caregiverPeachCard]}>
+            <Text style={styles.caregiverLabel}>Caregiver</Text>
+            <Text style={styles.caregiverValue} numberOfLines={1}>
+              Maya Sharma
+            </Text>
+          </View>
+
+          {/* Caregiver ID Card */}
+          <View style={[styles.caregiverCard, styles.caregiverNeutralCard]}>
+            <Text style={styles.caregiverLabel}>Caregiver ID</Text>
+            <Text style={styles.caregiverValue} numberOfLines={1}>
+              CG2048
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleViewLocationHistory}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryButtonText}>View Location History</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleEditProfile}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryButtonText}>Edit Child Profile</Text>
+          </TouchableOpacity>
+
+          {/* Return to Homepage Button */}
+          <TouchableOpacity
+            style={styles.returnButton}
+            onPress={handleBack}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={styles.returnButtonText}>🏠 Return to Homepage</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer Note */}
+        <Text style={styles.footerNote}>Parent controls this profile.</Text>
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
+
+export default ChildProfileScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4EFE6',
+    backgroundColor: '#F4EFE6', // Soft warm cream canvas
   },
-  header: {
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+  },
+
+  /* Header */
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EBE2D4',
+    marginBottom: 20,
+    paddingVertical: 4,
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#EAE1D2',
-    alignItems: 'center',
+    width: 32,
+    height: 32,
     justifyContent: 'center',
+    alignItems: 'flex-start',
   },
-  headerCenter: {
-    alignItems: 'center',
+  backChevron: {
+    fontSize: 32,
+    lineHeight: 34,
+    color: '#342F2A',
+    fontWeight: '300',
+    marginTop: -2,
   },
-  headerTitleHindi: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#322216',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#7A6B5F',
-    marginTop: 1,
-  },
-  childAvatarPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E6F0E3',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#CEE3CA',
-  },
-  avatarEmoji: {
-    fontSize: 16,
-  },
-  avatarName: {
-    fontSize: 12,
+  headerTitle: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#28552F',
+    color: '#342F2A',
+    letterSpacing: -0.3,
+    marginLeft: 6,
   },
-  speechBarCard: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2D5C3',
+
+  /* Profile Card */
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-  },
-  speechBarLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  speakerIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FAF5EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  speakerSpeaking: {
-    backgroundColor: '#D7E8D3',
-    transform: [{ scale: 1.05 }],
-  },
-  speakerEmoji: {
-    fontSize: 20,
-  },
-  speechText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2A1F16',
-    flex: 1,
-  },
-  speechActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  speakAgainBtn: {
-    backgroundColor: '#28552F',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  speakAgainBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  clearBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#EAE0D2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#5C4A3E',
-  },
-  categoryScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-    paddingVertical: 4,
-    maxHeight: 44,
-  },
-  categoryTab: {
-    backgroundColor: '#ECE3D4',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    height: 36,
-    justifyContent: 'center',
-  },
-  categoryTabActive: {
-    backgroundColor: '#28552F',
-  },
-  categoryTabText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#544335',
-  },
-  categoryTabTextActive: {
-    color: '#FFFFFF',
-  },
-  gridContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 28,
-  },
-  cardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  aacCard: {
-    width: '48%',
-    borderRadius: 22,
+    backgroundColor: '#DDF0D5', // Pastel sage green
+    borderRadius: 24,
     paddingVertical: 18,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    paddingHorizontal: 18,
+    marginBottom: 16,
   },
-  aacCardActive: {
-    transform: [{ scale: 0.97 }],
-    borderWidth: 3,
-  },
-  cardIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+  avatarContainer: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#F6F2E2',
     justifyContent: 'center',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 1,
   },
-  cardEmoji: {
-    fontSize: 34,
+  avatarEmoji: {
+    fontSize: 28,
   },
-  cardNepaliText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#281E15',
-    textAlign: 'center',
-  },
-  cardEnglishText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6F6052',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  emergencyBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FDECE4',
-    borderRadius: 20,
-    padding: 14,
-    marginTop: 18,
-    borderWidth: 1.5,
-    borderColor: '#F6B79D',
-  },
-  emergencyIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emergencyTextCol: {
+  profileInfo: {
     flex: 1,
-    paddingHorizontal: 10,
+    justifyContent: 'center',
   },
-  emergencyTitle: {
+  nameHindi: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#243022',
+    marginBottom: 2,
+  },
+  nameSub: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#BA3818',
+    fontWeight: '600',
+    color: '#3C4D3A',
+    marginBottom: 2,
   },
-  emergencySub: {
-    fontSize: 11,
-    color: '#8A5848',
-    marginTop: 1,
-  },
-  emergencyPill: {
-    backgroundColor: '#BA3818',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-  },
-  emergencyPillText: {
-    color: '#FFFFFF',
+  managedBy: {
     fontSize: 12,
-    fontWeight: '800',
+    color: '#5C6D5A',
   },
-  bottomReturnBtn: {
+
+  /* Location Card */
+  locationCard: {
+    backgroundColor: '#FFFEFB',
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#362E27',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#342F2A',
+    marginBottom: 12,
+  },
+  mapContainer: {
+    height: 126,
+    backgroundColor: '#E7E5DC',
+    borderRadius: 18,
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 14,
+  },
+  mapLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EAE0CE',
-    borderWidth: 1.5,
-    borderColor: '#DAC9B8',
-    paddingVertical: 13,
-    borderRadius: 14,
-    marginTop: 16,
-    columnGap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  bottomReturnBtnText: {
+  pinIcon: {
     fontSize: 14,
+    marginRight: 4,
+  },
+  mapLabelText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#342419',
+    color: '#342F2A',
+  },
+  updatedText: {
+    fontSize: 12,
+    color: '#7C7872',
+    marginTop: 10,
+    marginLeft: 2,
+  },
+
+  /* Caregiver Row */
+  caregiverRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 18,
+  },
+  caregiverCard: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  caregiverPeachCard: {
+    backgroundColor: '#FCE1D4', // Warm pastel peach
+  },
+  caregiverNeutralCard: {
+    backgroundColor: '#E8E7E0', // Muted warm grey
+  },
+  caregiverLabel: {
+    fontSize: 12,
+    color: '#645B53',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  caregiverValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2F2A25',
+  },
+
+  /* Action Buttons */
+  buttonGroup: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#BD5E2E', // Terracotta rust
+    height: 54,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#BD5E2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  secondaryButton: {
+    backgroundColor: '#F6EEE2', // Soft warm cream
+    height: 54,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#322C27',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  returnButton: {
+    backgroundColor: '#EAE1D2',
+    height: 48,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D8CEBE',
+  },
+  returnButtonText: {
+    color: '#473628',
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+
+  /* Footer Note */
+  footerNote: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#8A847B',
+    marginTop: 8,
   },
 });

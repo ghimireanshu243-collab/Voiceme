@@ -44,6 +44,7 @@ export default function Homepage({
   const [registeredAge, setRegisteredAge] = useState('६ वर्ष (6 yrs)');
   const [registeredAvatar, setRegisteredAvatar] = useState('👦');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [sosModalVisible, setSosModalVisible] = useState(false);
 
   const loadUserData = useCallback(() => {
     AsyncStorage.multiGet([REGISTERED_NAME_KEY, REGISTERED_AGE_KEY, REGISTERED_AVATAR_KEY])
@@ -106,6 +107,14 @@ export default function Homepage({
     );
   };
 
+  const handleTriggerSOS = () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch { }
+
+    router.push('/SOSpage');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
@@ -119,15 +128,15 @@ export default function Homepage({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Header Profile (User icon in top leads to Parents Page) */}
+        {/* 1. Header Profile (Directs to Child Profile) */}
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open Parents and Child Controls"
+            accessibilityLabel="Open Child Profile"
             style={({ pressed }) => [styles.profileRow, pressed && styles.pressedState]}
             onPress={() => {
               try { Haptics.selectionAsync(); } catch { }
-              router.push('/Parentspage');
+              router.push('/Childpage');
             }}
           >
             {/* Child Avatar Disc */}
@@ -142,24 +151,46 @@ export default function Homepage({
                 <Text style={styles.profileArrow}> ›</Text>
               </View>
               <Text style={styles.greetingSubtitle}>
-                {registeredName} · {registeredAge} · अभिभावक (Parents)
+                {registeredName} · {registeredAge}
               </Text>
             </View>
           </Pressable>
 
           <View style={styles.headerRightActions}>
-            {/* Direct Parents Page Button */}
+            {/* Top-Right Parents Dashboard Icon Button */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open Parents and Child Controls"
-              style={({ pressed }) => [styles.parentQuickBtn, pressed && styles.pressedState]}
+              accessibilityLabel="Open Parents Dashboard"
+              style={({ pressed }) => [styles.actionCircle, pressed && styles.pressedState]}
               onPress={() => {
                 try { Haptics.selectionAsync(); } catch { }
                 router.push('/Parentspage');
               }}
             >
-              <Text style={styles.parentQuickIcon}>👨‍👩‍👧</Text>
-              <Text style={styles.parentQuickText}>अभिभावक</Text>
+              <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+                  stroke="#9C532B"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Circle cx={9} cy={7} r={4} stroke="#9C532B" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+                <Path
+                  d="M23 21v-2a4 4 0 0 0-3-3.87"
+                  stroke="#9C532B"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Path
+                  d="M16 3.13a4 4 0 0 1 0 7.75"
+                  stroke="#9C532B"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
             </Pressable>
 
             {/* Top-Right Settings / Menu Emblem Button */}
@@ -357,52 +388,114 @@ export default function Homepage({
               <Text style={styles.cardMeta}>3 of 7 done</Text>
             </View>
           </Pressable>
-
-          {/* Card 5: हेरचाहकर्ता (Caregiver) */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open Caregiver Dashboard"
-            onPress={() => router.push('/Caregiverpage')}
-            style={({ pressed }) => [
-              styles.card,
-              { width: cardWidth, backgroundColor: '#E0F2DC' },
-              pressed && styles.cardPressed,
-            ]}
-          >
-            <View style={styles.cardIconBox}>
-              <Text style={{ fontSize: 26 }}>💚</Text>
-            </View>
-
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>हेरचाहकर्ता</Text>
-              <Text style={styles.cardSubtitle}>Caregiver</Text>
-              <Text style={styles.cardMeta}>alerts & care plan</Text>
-            </View>
-          </Pressable>
-
-          {/* Card 6: अभिभावक (Parents & Child) */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open Parents and Child Controls"
-            onPress={() => router.push('/Parentspage')}
-            style={({ pressed }) => [
-              styles.card,
-              { width: cardWidth, backgroundColor: '#EDE3D5' },
-              pressed && styles.cardPressed,
-            ]}
-          >
-            <View style={styles.cardIconBox}>
-              <Text style={{ fontSize: 26 }}>👨‍👩‍👧</Text>
-            </View>
-
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>अभिभावक</Text>
-              <Text style={styles.cardSubtitle}>Parents & Child</Text>
-              <Text style={styles.cardMeta}>controls & safety</Text>
-            </View>
-          </Pressable>
         </View>
+
+        {/* 4. SOS Emergency Button Banner */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="आपतकालीन SOS (Emergency Alert)"
+          style={({ pressed }) => [
+            styles.sosButton,
+            pressed && styles.sosButtonPressed,
+          ]}
+          onPress={handleTriggerSOS}
+        >
+          <View style={styles.sosContentRow}>
+            <View style={styles.sosIconBadge}>
+              <Text style={styles.sosEmoji}>🚨</Text>
+            </View>
+
+            <View style={styles.sosInfo}>
+              <View style={styles.sosTitleRow}>
+                <Text style={styles.sosTitle}>आपतकालीन SOS</Text>
+                <View style={styles.sosPill}>
+                  <Text style={styles.sosPillText}>EMERGENCY</Text>
+                </View>
+              </View>
+              <Text style={styles.sosSubtitle}>
+                मद्दत चाहिन्छ? हेरचाहकर्ता र परिवारलाई तुरून्त खबर गर्नुहोस्
+              </Text>
+            </View>
+
+            <View style={styles.sosArrowBadge}>
+              <Text style={styles.sosArrowText}>›</Text>
+            </View>
+          </View>
+        </Pressable>
       </ScrollView>
+
+      {/* Emergency SOS Active Modal */}
+      <Modal
+        visible={sosModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSosModalVisible(false)}
+      >
+        <View style={styles.sosModalOverlay}>
+          <View style={styles.sosModalCard}>
+            <View style={styles.sosModalPulseCircle}>
+              <Text style={styles.sosModalIcon}>🚨</Text>
+            </View>
+
+            <Text style={styles.sosModalTitleNepali}>
+              आपतकालीन सतर्कता पठाइयो!
+            </Text>
+            <Text style={styles.sosModalTitleEnglish}>
+              Emergency SOS Alert Broadcasted
+            </Text>
+
+            <View style={styles.sosLocationBox}>
+              <Text style={styles.sosLocationHeading}>📍 वर्तमान स्थान (Live Location):</Text>
+              <Text style={styles.sosLocationText}>
+                घर (Ward 4 Home Safe Zone) • 27.7172° N, 85.3240° E
+              </Text>
+              <Text style={styles.sosDispatchText}>
+                ✓ स्याहारकर्ता (Maya Sharma) लाई सूचना पठाइयो
+              </Text>
+              <Text style={styles.sosDispatchText}>
+                ✓ अभिभावक (Sita Sharma) लाई सूचना पठाइयो
+              </Text>
+            </View>
+
+            {/* Quick Emergency Call Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.sosCallButton,
+                pressed && styles.pressedState,
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  '📞 आपतकालीन कल (Emergency Call)',
+                  'स्याहारकर्ता (Maya Sharma) वा नेपाल प्रहरी (100) लाई कल गर्नुहोस्?',
+                  [
+                    { text: 'रद्द गर्नुहोस् (Cancel)', style: 'cancel' },
+                    { text: 'स्याहारकर्तालाई कल (Call Caregiver)', onPress: () => Alert.alert('Calling Maya Sharma...', '९८४१११२२३३') },
+                    { text: 'प्रहरी (Call 100)', onPress: () => Alert.alert('Calling Police 100...', 'Dialing 100') },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.sosCallButtonText}>📞 तुरुन्त कल गर्नुहोस् (Call Caregiver)</Text>
+            </Pressable>
+
+            {/* Safe / Dismiss Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.sosSafeButton,
+                pressed && styles.pressedState,
+              ]}
+              onPress={() => {
+                try {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } catch { }
+                setSosModalVisible(false);
+              }}
+            >
+              <Text style={styles.sosSafeButtonText}>✓ म सुरक्षित छु (I am Safe / Cancel)</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Quick Menu Modal for Settings / Navigation */}
       <Modal
@@ -429,10 +522,30 @@ export default function Homepage({
               style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
+                router.push('/Childpage');
+              }}
+            >
+              <Text style={styles.menuItemText}>🧒 बालबालिका प्रोफाइल (Child Profile)</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
                 router.push('/Parentspage');
               }}
             >
-              <Text style={styles.menuItemText}>👨‍👩‍👧 अभिभावक र बालबालिका (Parents & Child)</Text>
+              <Text style={styles.menuItemText}>👨‍👩‍👧 अभिभावक ड्यासबोर्ड (Parent Dashboard)</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.menuItem, { backgroundColor: '#FDECEA' }]}
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/SOSpage');
+              }}
+            >
+              <Text style={[styles.menuItemText, { color: '#C02C1D' }]}>🚨 आपतकालीन SOS (Emergency SOS)</Text>
             </Pressable>
 
             <Pressable
@@ -736,5 +849,211 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#8A786C',
+  },
+
+  /* SOS Emergency Button Styles */
+  sosButton: {
+    marginTop: 14,
+    marginBottom: 8,
+    borderRadius: 22,
+    backgroundColor: '#FFE9E4',
+    borderWidth: 1.5,
+    borderColor: '#F8B6AA',
+    padding: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#C42B1C',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  sosButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+    backgroundColor: '#FDD8D2',
+  },
+  sosContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sosIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FDE0DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#F7BCB1',
+  },
+  sosEmoji: {
+    fontSize: 22,
+  },
+  sosInfo: {
+    flex: 1,
+  },
+  sosTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sosTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#B82819',
+  },
+  sosPill: {
+    backgroundColor: '#BA2A1A',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+  },
+  sosPillText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  sosSubtitle: {
+    fontSize: 11.5,
+    color: '#844D42',
+    fontWeight: '500',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  sosArrowBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F7CDC5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  sosArrowText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#BA2A1A',
+    marginTop: -2,
+  },
+
+  /* SOS Modal Styles */
+  sosModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(25, 14, 11, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  sosModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFDFB',
+    borderRadius: 28,
+    padding: 22,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#F7C6BC',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#C42B1C',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  sosModalPulseCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FDE0DB',
+    borderWidth: 3,
+    borderColor: '#C73222',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  sosModalIcon: {
+    fontSize: 34,
+  },
+  sosModalTitleNepali: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#B32517',
+    textAlign: 'center',
+  },
+  sosModalTitleEnglish: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7D473E',
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  sosLocationBox: {
+    width: '100%',
+    backgroundColor: '#FAF5EE',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EFE3D5',
+    gap: 4,
+  },
+  sosLocationHeading: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#342419',
+  },
+  sosLocationText: {
+    fontSize: 12,
+    color: '#5B4E44',
+    fontWeight: '500',
+  },
+  sosDispatchText: {
+    fontSize: 11.5,
+    color: '#286B26',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  sosCallButton: {
+    width: '100%',
+    backgroundColor: '#BA2A1A',
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    elevation: 3,
+  },
+  sosCallButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sosSafeButton: {
+    width: '100%',
+    backgroundColor: '#EAE1D3',
+    borderRadius: 18,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D8CABB',
+  },
+  sosSafeButtonText: {
+    color: '#4B382A',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

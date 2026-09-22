@@ -1,37 +1,72 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  View,
   Text,
+  View,
+  TextInput,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
   StatusBar,
-  Platform,
-  Switch,
+  ScrollView,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
+import { ChevronLeft, Plus, Clover, Check } from 'lucide-react-native';
 
-export interface CaregiverScreenProps {
-  navigation?: any;
-  onBack?: () => void;
+export interface ConnectedChild {
+  id: string;
+  name: string;
+  parentName: string;
+  avatarEmoji: string;
+  status: string;
 }
 
-export const CaregiverScreen: React.FC<CaregiverScreenProps> = ({
-  navigation,
-  onBack,
-}) => {
-  // Caregiver notification & alert preferences
-  const [instantSosCall, setInstantSosCall] = useState(true);
-  const [geofenceBreachAlert, setGeofenceBreachAlert] = useState(true);
-  const [lowBatteryBuzzer, setLowBatteryBuzzer] = useState(true);
-  const [routineReminder, setRoutineReminder] = useState(false);
+export interface CaregiverData {
+  id: string;
+  name: string;
+  role: string;
+  isAvailable: boolean;
+  connectedChildren: ConnectedChild[];
+}
 
+const DEFAULT_CAREGIVER: CaregiverData = {
+  id: 'CG2048',
+  name: 'Maya Sharma',
+  role: 'Caregiver',
+  isAvailable: true,
+  connectedChildren: [
+    {
+      id: '1',
+      name: 'Aarav K.',
+      parentName: 'Sita Sharma',
+      avatarEmoji: '👦',
+      status: 'Connected',
+    },
+  ],
+};
+
+// ==========================================
+// 2. SCREEN 1: Caregiver Profile Screen
+// ==========================================
+export interface CaregiverProfileViewProps {
+  caregiver?: CaregiverData;
+  onNavigateToConnect: () => void;
+  onBackPress?: () => void;
+  onSelectChild?: (child: ConnectedChild) => void;
+  onToggleAvailability?: () => void;
+}
+
+export const CaregiverProfileScreen: React.FC<CaregiverProfileViewProps> = ({
+  caregiver = DEFAULT_CAREGIVER,
+  onNavigateToConnect,
+  onBackPress,
+  onSelectChild,
+  onToggleAvailability,
+}) => {
   const handleBack = () => {
-    if (onBack) {
-      onBack();
+    if (onBackPress) {
+      onBackPress();
     } else if (router.canGoBack()) {
       router.back();
     } else {
@@ -39,581 +74,596 @@ export const CaregiverScreen: React.FC<CaregiverScreenProps> = ({
     }
   };
 
-  const handleCallEmergency = (label: string, number: string) => {
-    Alert.alert(`Call ${label}`, `Initiating emergency call to ${number}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Call Now', onPress: () => console.log(`Calling ${number}`) },
-    ]);
+  const handleSelectChild = (child: ConnectedChild) => {
+    if (onSelectChild) {
+      onSelectChild(child);
+    } else {
+      router.push('/Childpage');
+    }
+  };
+
+  const handleShareId = () => {
+    Alert.alert(
+      'Share Caregiver ID',
+      `Your Caregiver ID is: ${caregiver.id}\nA parent can use this ID to send a connection request.`
+    );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#F4EFE6"
-        translucent={Platform.OS === 'android'}
-      />
-
-      {/* Top Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleBack}
-          style={styles.backButton}
-          accessibilityLabel="Return"
-          accessibilityRole="button"
-        >
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 18L9 12L15 6"
-              stroke="#342419"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitleHindi}>स्याहारकर्ता प्रोफाइल</Text>
-          <Text style={styles.headerTitleEnglish}>Caregiver Dashboard</Text>
-        </View>
-
-        <View style={styles.headerRightBadge}>
-          <View style={styles.verifiedDot} />
-          <Text style={styles.verifiedText}>Active</Text>
-        </View>
-      </View>
-
+      <StatusBar barStyle="dark-content" backgroundColor="#F4EFE6" />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Caregiver Hero Profile Card */}
-        <View style={styles.caregiverCard}>
-          <View style={styles.avatarLarge}>
-            <Text style={styles.avatarText}>S</Text>
-          </View>
-          <Text style={styles.caregiverNameHindi}>सुनिता शर्मा</Text>
-          <Text style={styles.caregiverNameEnglish}>Sunita Sharma · Primary Caregiver</Text>
-          <Text style={styles.caregiverRelation}>Mother of Aarav K. (७ वर्ष)</Text>
+        {/* Navigation Header */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="फर्कनुहोस् (Return)"
+            accessibilityRole="button"
+          >
+            <ChevronLeft size={24} color="#342F2A" strokeWidth={2.5} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Caregiver Profile</Text>
+        </View>
 
-          <View style={styles.metaBadgeRow}>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>मुख्य स्याहारकर्ता · Primary</Text>
-            </View>
-            <View style={styles.idBadge}>
-              <Text style={styles.idBadgeText}>ID: CG-84920</Text>
+        {/* Caregiver Identity Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>👩</Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.caregiverName}>{caregiver.name}</Text>
+            <Text style={styles.roleLabel}>{caregiver.role}</Text>
+            <View style={styles.idRow}>
+              <Text style={styles.idLabel}>Caregiver ID </Text>
+              <Text style={styles.idValue}>{caregiver.id}</Text>
             </View>
           </View>
         </View>
 
-        {/* Assigned Child Status Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>जिम्मेवार बालबालिका · Assigned Child</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/Childpage')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.viewLink}>View profile</Text>
-            </TouchableOpacity>
+        {/* Availability Status Card */}
+        <TouchableOpacity
+          style={styles.statusCard}
+          onPress={onToggleAvailability}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.statusDot, !caregiver.isAvailable && styles.statusDotOffline]} />
+          <View style={styles.statusTextWrapper}>
+            <Text style={styles.statusTitle}>
+              {caregiver.isAvailable ? 'Available' : 'Busy / Away'}
+            </Text>
+            <Text style={styles.statusSubtitle}>
+              {caregiver.isAvailable
+                ? 'Ready to support connected children'
+                : 'Currently unavailable for alerts'}
+            </Text>
           </View>
+        </TouchableOpacity>
 
-          <View style={styles.childRow}>
-            <View style={styles.childIconBox}>
-              <Text style={styles.childIconText}>👦</Text>
+        {/* Section Heading */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Connected profiles</Text>
+        </View>
+
+        {/* Connected Children List */}
+        {caregiver.connectedChildren.map((child) => (
+          <TouchableOpacity
+            key={child.id}
+            style={styles.childCard}
+            onPress={() => handleSelectChild(child)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.childAvatarCircle}>
+              <Text style={styles.childAvatarEmoji}>{child.avatarEmoji}</Text>
             </View>
             <View style={styles.childDetails}>
-              <Text style={styles.childName}>आरव के. सी. · Aarav K.</Text>
-              <Text style={styles.childLocation}>वर्तमान स्थान: घरमा (Ward 4)</Text>
+              <Text style={styles.childName}>{child.name}</Text>
+              <Text style={styles.childParent}>Parent: {child.parentName}</Text>
             </View>
-            <View style={styles.liveTag}>
-              <View style={styles.livePulse} />
-              <Text style={styles.liveTagText}>Live</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Smart Band Hardware Diagnostics */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>स्मार्ट ब्याण्ड स्थिति · GPS Band Health</Text>
-
-          <View style={styles.diagGrid}>
-            <View style={styles.diagBox}>
-              <Text style={styles.diagLabel}>Battery Level</Text>
-              <Text style={[styles.diagValue, { color: '#275225' }]}>86%</Text>
-              <Text style={styles.diagSub}>Normal health</Text>
-            </View>
-            <View style={styles.diagBox}>
-              <Text style={styles.diagLabel}>GPS Signal</Text>
-              <Text style={[styles.diagValue, { color: '#275225' }]}>Strong</Text>
-              <Text style={styles.diagSub}>±3m accuracy</Text>
-            </View>
-          </View>
-
-          <View style={styles.statusList}>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Sim Connection</Text>
-              <Text style={styles.statusValue}>Ncell 4G · Connected</Text>
-            </View>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Safe Zone</Text>
-              <Text style={styles.statusValue}>Inside Home Zone (200m)</Text>
-            </View>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Last Synced</Text>
-              <Text style={styles.statusValue}>12 seconds ago</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Caregiver Alert Settings / Toggles */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>अलर्ट सेटिङहरू · Emergency Alerts</Text>
-
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextCol}>
-              <Text style={styles.toggleTitle}>तुरुन्त कल · Instant SOS Call</Text>
-              <Text style={styles.toggleSubtitle}>Band SOS triggers instant voice call</Text>
-            </View>
-            <Switch
-              value={instantSosCall}
-              onValueChange={setInstantSosCall}
-              trackColor={{ false: '#D9D0C3', true: '#B7DCB2' }}
-              thumbColor={instantSosCall ? '#2E5A2A' : '#F4EFE6'}
-            />
-          </View>
-
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextCol}>
-              <Text style={styles.toggleTitle}>सिमाना अलर्ट · Safe Zone Breach</Text>
-              <Text style={styles.toggleSubtitle}>Notify when child leaves 200m perimeter</Text>
-            </View>
-            <Switch
-              value={geofenceBreachAlert}
-              onValueChange={setGeofenceBreachAlert}
-              trackColor={{ false: '#D9D0C3', true: '#B7DCB2' }}
-              thumbColor={geofenceBreachAlert ? '#2E5A2A' : '#F4EFE6'}
-            />
-          </View>
-
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextCol}>
-              <Text style={styles.toggleTitle}>ब्याट्री चेतावनी · Low Battery (&lt;20%)</Text>
-              <Text style={styles.toggleSubtitle}>Warn before band discharges</Text>
-            </View>
-            <Switch
-              value={lowBatteryBuzzer}
-              onValueChange={setLowBatteryBuzzer}
-              trackColor={{ false: '#D9D0C3', true: '#B7DCB2' }}
-              thumbColor={lowBatteryBuzzer ? '#2E5A2A' : '#F4EFE6'}
-            />
-          </View>
-
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextCol}>
-              <Text style={styles.toggleTitle}>दिनचर्या रिमाइन्डर · Routine Chime</Text>
-              <Text style={styles.toggleSubtitle}>Send mindfulness bell reminder</Text>
-            </View>
-            <Switch
-              value={routineReminder}
-              onValueChange={setRoutineReminder}
-              trackColor={{ false: '#D9D0C3', true: '#B7DCB2' }}
-              thumbColor={routineReminder ? '#2E5A2A' : '#F4EFE6'}
-            />
-          </View>
-        </View>
-
-        {/* Emergency Dispatch Contacts */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>आपतकालीन सम्पर्कहरू · Quick Contacts</Text>
-
-          <TouchableOpacity
-            style={styles.contactItem}
-            activeOpacity={0.7}
-            onPress={() => handleCallEmergency('Ambulance', '102')}
-          >
-            <View style={styles.contactLeft}>
-              <View style={[styles.contactDot, { backgroundColor: '#E24C4C' }]} />
-              <View>
-                <Text style={styles.contactLabel}>एम्बुलेन्स सेवा · Nepal Red Cross</Text>
-                <Text style={styles.contactSub}>Toll Free: 102</Text>
-              </View>
-            </View>
-            <View style={styles.callPill}>
-              <Text style={styles.callPillText}>102</Text>
-            </View>
+            <Text style={styles.connectedBadge}>{child.status}</Text>
           </TouchableOpacity>
+        ))}
 
-          <TouchableOpacity
-            style={styles.contactItem}
-            activeOpacity={0.7}
-            onPress={() => handleCallEmergency('Nepal Police', '100')}
-          >
-            <View style={styles.contactLeft}>
-              <View style={[styles.contactDot, { backgroundColor: '#32598D' }]} />
-              <View>
-                <Text style={styles.contactLabel}>नेपाल प्रहरी · Nepal Police</Text>
-                <Text style={styles.contactSub}>Emergency: 100</Text>
-              </View>
-            </View>
-            <View style={styles.callPill}>
-              <Text style={styles.callPillText}>100</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.contactItem}
-            activeOpacity={0.7}
-            onPress={() => handleCallEmergency('Childline Nepal', '1098')}
-          >
-            <View style={styles.contactLeft}>
-              <View style={[styles.contactDot, { backgroundColor: '#4C7D44' }]} />
-              <View>
-                <Text style={styles.contactLabel}>बाल हेल्पलाइन · Childline Nepal</Text>
-                <Text style={styles.contactSub}>National Helpline: 1098</Text>
-              </View>
-            </View>
-            <View style={styles.callPill}>
-              <Text style={styles.callPillText}>1098</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom Return Button */}
+        {/* Action Button: Connect to Profile */}
         <TouchableOpacity
-          activeOpacity={0.75}
-          style={styles.bottomReturnBtn}
-          onPress={handleBack}
+          style={styles.primaryActionButton}
+          onPress={onNavigateToConnect}
+          activeOpacity={0.85}
         >
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 18L9 12L15 6"
-              stroke="#342419"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={styles.bottomReturnBtnText}>गृहपृष्ठमा फर्कनुहोस् · Return to Home</Text>
+          <Plus size={20} color="#FFFFFF" strokeWidth={2.5} style={styles.buttonIcon} />
+          <Text style={styles.primaryButtonText}>Connect to Profile</Text>
+        </TouchableOpacity>
+
+        {/* Return Button to Homepage */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleBack}
+          style={styles.bottomReturnBtn}
+          accessibilityLabel="गृहपृष्ठमा फर्कनुहोस् (Return to Homepage)"
+          accessibilityRole="button"
+        >
+          <Text style={styles.bottomReturnIcon}>🏠</Text>
+          <Text style={styles.bottomReturnText}>गृहपृष्ठमा फर्कनुहोस् (Return to Homepage)</Text>
+        </TouchableOpacity>
+
+        {/* Footer Note */}
+        <TouchableOpacity onPress={handleShareId} activeOpacity={0.7} style={styles.footerNoteWrap}>
+          <Text style={styles.shareIdTitle}>Share your Caregiver ID: {caregiver.id}</Text>
+          <Text style={styles.shareIdDescription}>
+            A parent can use this ID to send a connection request.
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default CaregiverScreen;
+// ==========================================
+// 3. SCREEN 2: Connect Caregiver Screen
+// ==========================================
+export interface ConnectCaregiverViewProps {
+  onBackPress: () => void;
+  onRequestSent: (newChildName: string, caregiverId: string) => void;
+  defaultId?: string;
+  matchedUserName?: string;
+}
 
+export const ConnectCaregiverScreen: React.FC<ConnectCaregiverViewProps> = ({
+  onBackPress,
+  onRequestSent,
+  defaultId = 'CG2048',
+  matchedUserName = 'Aarav k',
+}) => {
+  const [userIdInput, setUserIdInput] = useState(defaultId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Match condition (e.g. caregiver ID pattern)
+  const isMatchFound = userIdInput.trim().toUpperCase() === 'CG2048' || userIdInput.trim().length >= 4;
+
+  const handleSendRequest = () => {
+    if (!isMatchFound) {
+      Alert.alert('ID Not Found', 'Please enter a valid Caregiver ID.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      Alert.alert(
+        'Request Sent Successfully',
+        `Connection request sent to caregiver (${userIdInput}). Awaiting approval.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => onRequestSent(matchedUserName, userIdInput),
+          },
+        ]
+      );
+    }, 700);
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F4EFE6" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Navigation Header */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onBackPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <ChevronLeft size={28} color="#342F2A" strokeWidth={2.5} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Connect Caregiver</Text>
+        </View>
+
+        {/* Top 3-Leaf Clover Emblem Badge */}
+        <View style={styles.emblemContainer}>
+          <View style={styles.emblemCircle}>
+            <Clover size={46} color="#465743" strokeWidth={1.8} />
+          </View>
+        </View>
+
+        {/* Headings */}
+        <View style={styles.connectHeadingWrap}>
+          <Text style={styles.connectMainHeading}>Enter to user ID</Text>
+          <Text style={styles.connectSubHeading}>Use the ID provided by the caregiver</Text>
+        </View>
+
+        {/* User ID Input */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>User ID</Text>
+          <TextInput
+            style={styles.textInput}
+            value={userIdInput}
+            onChangeText={setUserIdInput}
+            placeholder="e.g. CG2048"
+            placeholderTextColor="#A8A196"
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Matched User Green Card with Checkmark */}
+        {isMatchFound && (
+          <View style={styles.matchedCard}>
+            <View>
+              <Text style={styles.matchedLabel}>User</Text>
+              <Text style={styles.matchedName}>{matchedUserName}</Text>
+            </View>
+            <Check size={22} color="#263324" strokeWidth={2.8} />
+          </View>
+        )}
+
+        {/* Primary Action Button */}
+        <TouchableOpacity
+          style={[styles.primaryActionButton, !isMatchFound && styles.buttonDisabled]}
+          onPress={handleSendRequest}
+          disabled={isSubmitting || !isMatchFound}
+          activeOpacity={0.85}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.primaryButtonText}>Send Connection Request</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Return to Profile Button */}
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={onBackPress}
+          activeOpacity={0.8}
+          accessibilityLabel="फर्कनुहोस् (Return to Profile)"
+          accessibilityRole="button"
+        >
+          <Text style={styles.cancelButtonText}>फर्कनुहोस् (Return to Profile)</Text>
+        </TouchableOpacity>
+
+        {/* Explanatory Footer */}
+        <View style={styles.footerNoteWrap}>
+          <Text style={styles.footerApprovalTitle}>The caregiver must accept the request.</Text>
+          <Text style={styles.footerApprovalDesc}>
+            After approval, they can access the permissions you choose for the child's profile.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// ==========================================
+// 4. MAIN NAVIGATOR COMPONENT
+// Handles page transition between both screens
+// ==========================================
+export default function CaregiverFlowApp() {
+  const [currentScreen, setCurrentScreen] = useState<'profile' | 'connect'>('profile');
+  const [caregiver, setCaregiver] = useState<CaregiverData>(DEFAULT_CAREGIVER);
+
+  const handleBackToPrevious = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/Homepage');
+    }
+  };
+
+  const handleConnectionAccepted = (newChildName: string) => {
+    const exists = caregiver.connectedChildren.some(
+      (c) => c.name.toLowerCase() === newChildName.toLowerCase()
+    );
+
+    if (!exists) {
+      setCaregiver((prev) => ({
+        ...prev,
+        connectedChildren: [
+          ...prev.connectedChildren,
+          {
+            id: String(Date.now()),
+            name: newChildName,
+            parentName: 'Sita Sharma',
+            avatarEmoji: '👦',
+            status: 'Connected',
+          },
+        ],
+      }));
+    }
+    // Return back to caregiver profile after sending request
+    setCurrentScreen('profile');
+  };
+
+  const handleToggleAvailability = () => {
+    setCaregiver((prev) => ({ ...prev, isAvailable: !prev.isAvailable }));
+  };
+
+  if (currentScreen === 'connect') {
+    return (
+      <ConnectCaregiverScreen
+        onBackPress={() => setCurrentScreen('profile')}
+        onRequestSent={handleConnectionAccepted}
+        defaultId={caregiver.id}
+        matchedUserName="Aarav k"
+      />
+    );
+  }
+
+  return (
+    <CaregiverProfileScreen
+      caregiver={caregiver}
+      onNavigateToConnect={() => setCurrentScreen('connect')}
+      onBackPress={handleBackToPrevious}
+      onSelectChild={() => router.push('/Childpage')}
+      onToggleAvailability={handleToggleAvailability}
+    />
+  );
+}
+
+// ==========================================
+// 5. UNIFIED STYLESHEET
+// ==========================================
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4EFE6',
+    backgroundColor: '#F4EFE6', // Soft warm cream canvas
   },
-  header: {
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+  },
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EBE2D4',
+    marginBottom: 20,
+    paddingVertical: 4,
   },
   backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EAE1D2',
+    backgroundColor: '#EAE0CE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: {
-    alignItems: 'center',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#342F2A',
+    letterSpacing: -0.3,
+    marginLeft: 10,
   },
-  headerTitleHindi: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#322216',
-  },
-  headerTitleEnglish: {
-    fontSize: 11.5,
-    fontWeight: '500',
-    color: '#7A6B5F',
-  },
-  headerRightBadge: {
+
+  // Caregiver Profile Card Styles
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#D9ECD4',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  verifiedDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#358231',
-  },
-  verifiedText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#245620',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 32,
-    gap: 14,
-  },
-  caregiverCard: {
-    backgroundColor: '#FAF5EE',
+    backgroundColor: '#FCE1D4', // Pastel peach card
     borderRadius: 24,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ECE2D4',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 16,
   },
-  avatarLarge: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#D7E8D3',
-    alignItems: 'center',
+  avatarCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F6F2E2',
     justifyContent: 'center',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginRight: 16,
   },
-  avatarText: {
+  avatarEmoji: {
     fontSize: 30,
-    fontWeight: '800',
-    color: '#275225',
   },
-  caregiverNameHindi: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#281E15',
+  profileInfo: {
+    flex: 1,
   },
-  caregiverNameEnglish: {
+  caregiverName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2E2A25',
+    marginBottom: 2,
+  },
+  roleLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#6F6052',
-    marginTop: 2,
+    color: '#685F56',
+    fontWeight: '500',
   },
-  caregiverRelation: {
-    fontSize: 12,
-    color: '#8A7B6E',
-    marginTop: 2,
-  },
-  metaBadgeRow: {
+  idRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  roleBadge: {
-    backgroundColor: '#E2EEDF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2A5826',
-  },
-  idBadge: {
-    backgroundColor: '#ECE3D4',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  idBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#655546',
-  },
-  card: {
-    backgroundColor: '#FAF5EE',
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ECE2D4',
-    gap: 12,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 6,
   },
-  cardTitle: {
-    fontSize: 15,
+  idLabel: {
+    fontSize: 12,
+    color: '#7C746B',
+  },
+  idValue: {
+    fontSize: 16,
     fontWeight: '800',
-    color: '#2D1F15',
+    color: '#BD5E2E', // Terracotta orange
   },
-  viewLink: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#366933',
-  },
-  childRow: {
+  statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3EDE2',
-    borderRadius: 16,
-    padding: 12,
-    gap: 12,
+    backgroundColor: '#DDF0D5', // Gentle pastel sage green
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
-  childIconBox: {
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#5C6E5A',
+    marginRight: 12,
+  },
+  statusDotOffline: {
+    backgroundColor: '#A0988E',
+  },
+  statusTextWrapper: {
+    flex: 1,
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A3528',
+  },
+  statusSubtitle: {
+    fontSize: 12,
+    color: '#556952',
+    marginTop: 2,
+  },
+  sectionHeaderRow: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#342F2A',
+  },
+  childCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFEFB',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F2ECE1',
+  },
+  childAvatarCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E4DAC8',
-    alignItems: 'center',
+    backgroundColor: '#F6F2E2',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
-  childIconText: {
-    fontSize: 22,
+  childAvatarEmoji: {
+    fontSize: 24,
   },
   childDetails: {
     flex: 1,
   },
   childName: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#2D1F15',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2E2A25',
   },
-  childLocation: {
-    fontSize: 11.5,
-    color: '#67584A',
+  childParent: {
+    fontSize: 12,
+    color: '#7C7872',
     marginTop: 2,
   },
-  liveTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#D9ECD4',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  livePulse: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#358231',
-  },
-  liveTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#275823',
-  },
-  diagGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  diagBox: {
-    flex: 1,
-    backgroundColor: '#F3EDE2',
-    borderRadius: 16,
-    padding: 12,
-  },
-  diagLabel: {
-    fontSize: 11,
-    color: '#78685A',
+  connectedBadge: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#5C6E5A',
   },
-  diagValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: 2,
+
+  // Connect Caregiver Styles
+  emblemContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 16,
   },
-  diagSub: {
-    fontSize: 10.5,
-    color: '#8A7B6E',
-    marginTop: 1,
+  emblemCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#DDF0D5', // Gentle sage emblem
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  statusList: {
-    gap: 8,
-    paddingTop: 4,
+  connectHeadingWrap: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EDE5D6',
-  },
-  statusLabel: {
-    fontSize: 12.5,
-    color: '#766759',
-    fontWeight: '500',
-  },
-  statusValue: {
-    fontSize: 12.5,
+  connectMainHeading: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#2E2016',
+    color: '#342F2A',
+    letterSpacing: -0.2,
   },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EFE7DA',
+  connectSubHeading: {
+    fontSize: 14,
+    color: '#716A62',
+    marginTop: 4,
   },
-  toggleTextCol: {
-    flex: 1,
-    paddingRight: 12,
+  inputGroup: {
+    marginBottom: 14,
   },
-  toggleTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#2F2016',
-  },
-  toggleSubtitle: {
-    fontSize: 11,
-    color: '#7C6C5E',
-    marginTop: 1,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F3EDE2',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 6,
-  },
-  contactLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  contactDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  contactLabel: {
+  inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#281E15',
+    color: '#453F38',
+    marginBottom: 8,
+    marginLeft: 2,
   },
-  contactSub: {
-    fontSize: 11,
-    color: '#736355',
-    marginTop: 1,
+  textInput: {
+    height: 56,
+    backgroundColor: '#FFFEFB',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E7E2D7',
+    paddingHorizontal: 18,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2E2A25',
   },
-  callPill: {
-    backgroundColor: '#274E28',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+  matchedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#DDF0D5', // Sage card
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#CEE4C5',
   },
-  callPillText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+  matchedLabel: {
     fontSize: 12,
+    color: '#566853',
+    fontWeight: '500',
+  },
+  matchedName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#263324',
+    marginTop: 2,
+  },
+
+  // Common Action Buttons & Footers
+  primaryActionButton: {
+    flexDirection: 'row',
+    backgroundColor: '#BD5E2E', // Terracotta orange
+    height: 54,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#BD5E2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+    marginTop: 6,
+    marginBottom: 12,
   },
   bottomReturnBtn: {
     flexDirection: 'row',
@@ -624,13 +674,74 @@ const styles = StyleSheet.create({
     borderColor: '#DAC9B8',
     paddingVertical: 13,
     borderRadius: 14,
-    marginTop: 10,
-    marginBottom: 10,
-    columnGap: 8,
+    gap: 8,
+    marginBottom: 20,
   },
-  bottomReturnBtnText: {
+  bottomReturnIcon: {
+    fontSize: 16,
+  },
+  bottomReturnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#342419',
+    color: '#4C3524',
+  },
+  cancelButton: {
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#DAC9B8',
+    backgroundColor: '#EAE0CE',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#5C4A3C',
+  },
+  buttonDisabled: {
+    backgroundColor: '#D8D2C5',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  footerNoteWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  shareIdTitle: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#342F2A',
+  },
+  shareIdDescription: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#8A847B',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  footerApprovalTitle: {
+    fontSize: 13,
+    color: '#6E675E',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  footerApprovalDesc: {
+    fontSize: 12,
+    color: '#847E74',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

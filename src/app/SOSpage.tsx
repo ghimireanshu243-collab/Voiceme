@@ -1,0 +1,345 @@
+import React, { useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
+import Svg, { Path } from 'react-native-svg';
+
+export default function SOSpage() {
+  useEffect(() => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch {}
+
+    try {
+      Speech.stop();
+      Speech.speak('आपतकालीन मद्दत सतर्कता सक्रिय छ', {
+        language: 'ne-NP',
+        pitch: 1.1,
+        rate: 0.95,
+      });
+    } catch {}
+  }, []);
+
+  const handleCall = (label: string, number: string) => {
+    Alert.alert(
+      `📞 ${label}`,
+      `Initiating emergency call to ${number}?`,
+      [
+        { text: 'रद्द (Cancel)', style: 'cancel' },
+        { text: 'कल गर्नुहोस् (Call Now)', onPress: () => Alert.alert(`Calling ${label}`, number) },
+      ]
+    );
+  };
+
+  const handleSafeReturn = () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/Homepage');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#8F1D11" />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Return Button */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleSafeReturn}
+            activeOpacity={0.7}
+            accessibilityLabel="Return"
+          >
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 18L9 12L15 6"
+                stroke="#FFFFFF"
+                strokeWidth={2.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Voice Me SOS</Text>
+        </View>
+
+        {/* Pulsing SOS Emblem */}
+        <View style={styles.emblemContainer}>
+          <View style={styles.outerGlow}>
+            <View style={styles.innerCircle}>
+              <Text style={styles.sosSymbol}>🚨</Text>
+              <Text style={styles.sosWord}>SOS</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Title */}
+        <Text style={styles.titleNepali}>आपतकालीन सतर्कता सक्रिय!</Text>
+        <Text style={styles.titleEnglish}>Emergency SOS Broadcast Active</Text>
+
+        {/* Location & Status Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoHeading}>📍 वर्तमान स्थान (Current Location):</Text>
+          <Text style={styles.infoLocation}>घर (Ward 4 Home Safe Zone)</Text>
+          <Text style={styles.infoCoordinates}>Coordinates: 27.7172° N, 85.3240° E</Text>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.notifiedHeader}>👥 सम्पर्कमा सूचना पठाइयो (Notified Contacts):</Text>
+          <Text style={styles.notifiedItem}>✓ स्याहारकर्ता: Maya Sharma (ID: CG2048)</Text>
+          <Text style={styles.notifiedItem}>✓ अभिभावक: Sita Sharma (P001)</Text>
+        </View>
+
+        {/* Emergency Dispatch Calls */}
+        <View style={styles.callsContainer}>
+          <TouchableOpacity
+            style={[styles.callBtn, styles.callCaregiverBtn]}
+            onPress={() => handleCall('स्याहारकर्ता (Maya Sharma)', '९८४१११२२३३')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.callIcon}>💚</Text>
+            <View style={styles.callTexts}>
+              <Text style={styles.callTitle}>स्याहारकर्तालाई तुरुन्त कल</Text>
+              <Text style={styles.callSub}>Call Caregiver • ९८४१११२२३३</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.callBtn, styles.callPoliceBtn]}
+            onPress={() => handleCall('नेपाल प्रहरी (Police)', '100')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.callIcon}>🚓</Text>
+            <View style={styles.callTexts}>
+              <Text style={styles.callTitle}>नेपाल प्रहरी (Police Emergency)</Text>
+              <Text style={styles.callSub}>Toll Free • Dial 100</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.callBtn, styles.callAmbulanceBtn]}
+            onPress={() => handleCall('एम्बुलेन्स सेवा (Ambulance)', '102')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.callIcon}>🚑</Text>
+            <View style={styles.callTexts}>
+              <Text style={styles.callTitle}>एम्बुलेन्स सेवा (Red Cross)</Text>
+              <Text style={styles.callSub}>Toll Free • Dial 102</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Safe / Dismiss Button */}
+        <TouchableOpacity
+          style={styles.safeButton}
+          onPress={handleSafeReturn}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.safeButtonText}>✓ म सुरक्षित छु · गृहपृष्ठमा फर्कनुहोस्</Text>
+          <Text style={styles.safeButtonSub}>(I am Safe / Return to Homepage)</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#9F2316',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    alignItems: 'center',
+  },
+  headerBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginLeft: 12,
+  },
+  emblemContainer: {
+    marginVertical: 14,
+  },
+  outerGlow: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerCircle: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+  sosSymbol: {
+    fontSize: 34,
+  },
+  sosWord: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#A82114',
+    letterSpacing: 1.5,
+  },
+  titleNepali: {
+    fontSize: 23,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  titleEnglish: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#F9D1CD',
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 18,
+  },
+  infoCard: {
+    width: '100%',
+    backgroundColor: '#FFFDFB',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 16,
+    elevation: 3,
+  },
+  infoHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#342419',
+  },
+  infoLocation: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#9F2316',
+    marginTop: 2,
+  },
+  infoCoordinates: {
+    fontSize: 12,
+    color: '#6F6358',
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#EBE2D5',
+    marginVertical: 12,
+  },
+  notifiedHeader: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#342419',
+    marginBottom: 4,
+  },
+  notifiedItem: {
+    fontSize: 12,
+    color: '#286B26',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  callsContainer: {
+    width: '100%',
+    gap: 10,
+    marginBottom: 20,
+  },
+  callBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 18,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  callCaregiverBtn: {
+    backgroundColor: '#E8F5E5',
+    borderWidth: 1.5,
+    borderColor: '#BEE0B7',
+  },
+  callPoliceBtn: {
+    backgroundColor: '#E6EFFB',
+    borderWidth: 1.5,
+    borderColor: '#BCD6F6',
+  },
+  callAmbulanceBtn: {
+    backgroundColor: '#FDECEB',
+    borderWidth: 1.5,
+    borderColor: '#F8BDBA',
+  },
+  callIcon: {
+    fontSize: 24,
+    marginRight: 14,
+  },
+  callTexts: {
+    flex: 1,
+  },
+  callTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#231D19',
+  },
+  callSub: {
+    fontSize: 11.5,
+    color: '#655A51',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  safeButton: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+  },
+  safeButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#286B26',
+  },
+  safeButtonSub: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#557253',
+    marginTop: 1,
+  },
+});

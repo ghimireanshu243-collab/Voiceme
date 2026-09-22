@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,21 +11,54 @@ import {
   Platform,
 } from "react-native";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Loginpage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"user" | "caregiver">("user");
 
-  const handleLogin = () => {
-    // Seamless login: if fields are empty, auto-fill defaults and proceed to Homepage
+  useEffect(() => {
+    AsyncStorage.getItem("voiceme.currentRole")
+      .then((role) => {
+        if (role === "caregiver") {
+          setSelectedRole("caregiver");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogin = async () => {
+    // Seamless login: if fields are empty, auto-fill defaults
     if (!email.trim() && !password.trim()) {
-      setEmail("aarav@voiceme.np");
-      setPassword("voiceme123");
+      if (selectedRole === "caregiver") {
+        setEmail("caregiver@voiceme.np");
+        setPassword("caregiver123");
+      } else {
+        setEmail("aarav@voiceme.np");
+        setPassword("voiceme123");
+      }
     }
 
-    // Login successful → Home page
-    router.replace("/Homepage");
+    const isCaregiver =
+      selectedRole === "caregiver" ||
+      email.toLowerCase().includes("caregiver") ||
+      email.toLowerCase().includes("maya") ||
+      email.toLowerCase().includes("cg");
+
+    if (isCaregiver) {
+      try {
+        await AsyncStorage.setItem("voiceme.currentRole", "caregiver");
+      } catch {}
+      // Directs to Caregiver Profile screen!
+      router.replace("/Caregiverpage");
+    } else {
+      try {
+        await AsyncStorage.setItem("voiceme.currentRole", "user");
+      } catch {}
+      router.replace("/Homepage");
+    }
   };
 
   return (
@@ -69,6 +102,45 @@ export default function Loginpage() {
                   />
                 )
               )}
+            </View>
+
+            {/* ROLE SELECTOR */}
+            <View style={styles.roleSelector}>
+              <Pressable
+                style={[
+                  styles.roleTab,
+                  selectedRole === "user" && styles.roleTabActiveUser,
+                ]}
+                onPress={() => setSelectedRole("user")}
+              >
+                <Text style={styles.roleIcon}>👤</Text>
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === "user" && styles.roleTabTextActive,
+                  ]}
+                >
+                  प्रयोगकर्ता (User)
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.roleTab,
+                  selectedRole === "caregiver" && styles.roleTabActiveCaregiver,
+                ]}
+                onPress={() => setSelectedRole("caregiver")}
+              >
+                <Text style={styles.roleIcon}>💚</Text>
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === "caregiver" && styles.roleTabTextActive,
+                  ]}
+                >
+                  हेरचाहकर्ता (Caregiver)
+                </Text>
+              </Pressable>
             </View>
 
             {/* FORM */}
@@ -368,5 +440,44 @@ const styles = StyleSheet.create({
     color: "#54231E",
     fontSize: 12,
     marginTop: 2,
+  },
+  roleSelector: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    backgroundColor: "#EFE6D7",
+    borderWidth: 1.5,
+    borderColor: "#E2D5C3",
+  },
+  roleTabActiveUser: {
+    backgroundColor: "#FCE7DB",
+    borderColor: "#BD622D",
+  },
+  roleTabActiveCaregiver: {
+    backgroundColor: "#DDF0D5",
+    borderColor: "#4B7A46",
+  },
+  roleIcon: {
+    fontSize: 16,
+  },
+  roleTabText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6D5F54",
+  },
+  roleTabTextActive: {
+    fontWeight: "800",
+    color: "#2C2018",
   },
 });
