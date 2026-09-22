@@ -15,8 +15,8 @@ import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
 
 const API_BASE_URL = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000'
-    : 'http://localhost:8000';
+    ? 'http://192.168.1.77:8000'
+    : 'http://192.168.1.77:8000';
 
 interface AttentionBellScreenProps {
     onBack?: () => void;

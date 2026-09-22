@@ -20,8 +20,8 @@ const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 const AUTH_USER_KEY = 'voiceme.user';
 const API_BASE_URL = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000'
-    : 'http://localhost:8000';
+    ? 'http://192.168.1.77:8000'
+    : 'http://192.168.1.77:8000';
 
 const persistAuthSession = async (token: string, user: { id?: string; name?: string; email?: string; age?: string | number }) => {
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);

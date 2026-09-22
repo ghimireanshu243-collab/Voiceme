@@ -35,17 +35,37 @@ def _generate_connect_code():
     return secrets.token_hex(4).upper()
 
 
-def _serialize_child(child):
+def _public_contact(contact):
+    """
+    Strips a stored contact down to the fields a viewer (parent or caregiver
+    app) is meant to see, so internal bookkeeping like the caregiver's own
+    account user_id never leaves the backend in a profile response.
+    """
+    if not contact:
+        return None
     return {
+        'id': contact.get('id'),
+        'name': contact.get('name'),
+        'phone': contact.get('phone'),
+    }
+
+
+def _serialize_child(child, include_connect_code=True):
+    serialized = {
         'id': str(child['_id']),
         'name': child.get('name', ''),
         'age': child.get('age', ''),
         'avatar': child.get('avatar', ''),
-        'caregiver': child.get('caregiver'),
-        'parent': child.get('parent'),
+        'caregiver': _public_contact(child.get('caregiver')),
+        'parent': _public_contact(child.get('parent')),
         'gps': child.get('gps', {'connected': False, 'location_label': None, 'updated_at': None}),
-        'connect_code': child.get('connect_code'),
     }
+    if include_connect_code:
+        # The connect code is the parent's own invite secret for linking
+        # caregiver accounts; only the parent's app should ever see it, never
+        # a caregiver's dashboard (which would let them re-share it further).
+        serialized['connect_code'] = child.get('connect_code')
+    return serialized
 
 
 @api_view(['GET', 'POST'])
@@ -136,7 +156,7 @@ def connect_caregiver(request):
 
     children_collection.update_one({'_id': child['_id']}, {'$set': {'caregiver': caregiver}})
     child = children_collection.find_one({'_id': child['_id']})
-    return Response(_serialize_child(child), status=status.HTTP_200_OK)
+    return Response(_serialize_child(child, include_connect_code=False), status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -151,7 +171,7 @@ def caregiver_dashboard(request):
             {'error': 'Not connected to a child yet. Ask the parent for their connect code.'},
             status=status.HTTP_404_NOT_FOUND,
         )
-    return Response(_serialize_child(child), status=status.HTTP_200_OK)
+    return Response(_serialize_child(child, include_connect_code=False), status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -184,6 +204,6 @@ def trigger_sos(request):
         'alert_id': str(result.inserted_id),
         'triggered_at': now.isoformat(),
         'location_label': location_label,
-        'caregiver': child.get('caregiver'),
-        'parent': child.get('parent'),
+        'caregiver': _public_contact(child.get('caregiver')),
+        'parent': _public_contact(child.get('parent')),
     }, status=status.HTTP_201_CREATED)

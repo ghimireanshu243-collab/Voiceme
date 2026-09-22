@@ -9,49 +9,72 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Linking,
 } from "react-native";
 import { router } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const AUTH_TOKEN_KEY = 'voiceme.authToken';
+const AUTH_USER_KEY = 'voiceme.user';
+const REGISTERED_NAME_KEY = 'voiceme.registeredName';
+const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
+const SELECTED_ROLE_KEY = 'voiceme.selectedRole';
 const API_BASE_URL = Platform.OS === 'android'
   ? 'http://192.168.1.77:8000'
   : 'http://192.168.1.77:8000';
 
-export default function Forgotpasswordpage() {
-  const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
-  // Only present while the backend runs with DEBUG on, so the reset link can
-  // be tested without checking the server terminal or a real inbox.
-  const [debugResetUrl, setDebugResetUrl] = useState<string | null>(null);
+const clearLocalSession = async () => {
+  await AsyncStorage.multiRemove([
+    AUTH_TOKEN_KEY,
+    AUTH_USER_KEY,
+    REGISTERED_NAME_KEY,
+    REGISTERED_AGE_KEY,
+    SELECTED_ROLE_KEY,
+  ]);
+};
 
-  const handleSendLink = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      alert("Please enter a valid email address.");
+export default function Deleteaccountpage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const handleDeleteAccount = async () => {
+    setFormError('');
+
+    if (!email.trim() || !password.trim()) {
+      setFormError('कृपया इमेल र पासवर्ड दुवै प्रविष्ट गर्नुहोस् (Please enter both email and password)');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/forgot-password/`, {
+      const response = await fetch(`${API_BASE_URL}/api/delete-account/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Unable to send a reset link right now.');
+        setFormError(data?.error || 'Unable to delete account right now.');
+        return;
       }
 
-      setLinkSent(true);
-      setDebugResetUrl(data?.debug_reset_url || null);
+      await clearLocalSession();
+      setDeleted(true);
+      setConfirming(false);
     } catch (error: any) {
-      alert(error?.message || 'Unable to send a reset link. Please try again.');
+      console.error('Delete account request failed:', error);
+      setFormError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -84,15 +107,69 @@ export default function Forgotpasswordpage() {
 
             {/* TITLE */}
             <View style={styles.headingContainer}>
-              <Text style={styles.nepaliHeading}>पासवर्ड बिर्सनुभयो?</Text>
-              <Text style={styles.englishHeading}>Forgot Password</Text>
+              <Text style={styles.nepaliHeading}>खाता मेटाउनुहोस्</Text>
+              <Text style={styles.englishHeading}>Delete Account</Text>
             </View>
 
-            {!linkSent ? (
+            {deleted ? (
+              <View style={styles.confirmBox}>
+                <Text style={styles.confirmNepali}>खाता मेटाइयो</Text>
+                <Text style={styles.confirmEnglish}>
+                  Your account has been permanently deleted.
+                </Text>
+              </View>
+            ) : confirming ? (
+              <View style={styles.confirmBox}>
+                <Text style={styles.confirmNepali}>पक्का हो?</Text>
+                <Text style={styles.confirmEnglish}>
+                  This will permanently delete your account and all of your data.
+                  This cannot be undone.
+                </Text>
+
+                {formError ? (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>{formError}</Text>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.dangerButton,
+                    pressed && styles.buttonPressed,
+                    isSubmitting && styles.buttonDisabled,
+                  ]}
+                  onPress={() => {
+                    if (!isSubmitting) {
+                      void handleDeleteAccount();
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.dangerNepali}>
+                    {isSubmitting ? 'मेटाउँदै...' : 'हो, मेटाउनुहोस्'}
+                  </Text>
+                  <Text style={styles.dangerEnglish}>
+                    {isSubmitting ? 'Deleting…' : 'Yes, delete my account'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={() => {
+                    if (!isSubmitting) {
+                      setConfirming(false);
+                      setFormError('');
+                    }
+                  }}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </Pressable>
+              </View>
+            ) : (
               <>
                 <Text style={styles.helperText}>
-                  तपाईंको इमेलमा पासवर्ड रिसेट लिंक पठाइनेछ।{"\n"}
-                  We'll email you a link to reset your password.
+                  तपाईंको खाता स्थायी रूपमा मेटाउन इमेल र पासवर्ड प्रविष्ट गर्नुहोस्।{"\n"}
+                  Enter your email and password to delete your account.
                 </Text>
 
                 {/* FORM */}
@@ -110,62 +187,52 @@ export default function Forgotpasswordpage() {
                       autoCorrect={false}
                     />
                   </View>
+
+                  <Text style={styles.fieldLabel}>पासवर्ड</Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Password"
+                      placeholderTextColor="#443F32"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>
+                        {showPassword ? "◉" : "◌"}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                {/* SEND LINK BUTTON */}
+                {formError ? (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>{formError}</Text>
+                  </View>
+                ) : null}
+
+                {/* CONTINUE BUTTON */}
                 <Pressable
                   style={({ pressed }) => [
-                    styles.primaryButton,
+                    styles.dangerButton,
                     pressed && styles.buttonPressed,
-                    isSubmitting && styles.buttonDisabled,
                   ]}
                   onPress={() => {
-                    if (!isSubmitting) {
-                      void handleSendLink();
+                    setFormError('');
+                    if (!email.trim() || !password.trim()) {
+                      setFormError('कृपया इमेल र पासवर्ड दुवै प्रविष्ट गर्नुहोस् (Please enter both email and password)');
+                      return;
                     }
-                  }}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.primaryNepali}>लिंक पठाउनुहोस्</Text>
-                  <Text style={styles.primaryEnglish}>
-                    {isSubmitting ? "Sending…" : "Send reset link"}
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <View style={styles.confirmBox}>
-                  <Text style={styles.confirmNepali}>इमेल जाँच गर्नुहोस्</Text>
-                  <Text style={styles.confirmEnglish}>
-                    If an account exists for {email.trim()}, we've sent a password
-                    reset link to that email. Open it to choose a new password,
-                    then come back and log in.
-                  </Text>
-                </View>
-
-                {/* Dev-only shortcut: lets the reset link be opened straight from
-                    the app while the backend runs with DEBUG=True. */}
-                {debugResetUrl && (
-                  <Pressable
-                    style={styles.secondaryButton}
-                    onPress={() => Linking.openURL(debugResetUrl)}
-                  >
-                    <Text style={styles.secondaryButtonText}>
-                      (Debug) Open reset link
-                    </Text>
-                  </Pressable>
-                )}
-
-                <Pressable
-                  style={styles.secondaryButton}
-                  onPress={() => {
-                    setLinkSent(false);
-                    setDebugResetUrl(null);
+                    setConfirming(true);
                   }}
                 >
-                  <Text style={styles.secondaryButtonText}>
-                    Use a different email or resend the link
-                  </Text>
+                  <Text style={styles.dangerNepali}>अगाडि बढ्नुहोस्</Text>
+                  <Text style={styles.dangerEnglish}>Continue</Text>
                 </Pressable>
               </>
             )}
@@ -302,9 +369,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingHorizontal: 5,
   },
-  primaryButton: {
+  eyeButton: {
+    width: 35,
+    height: 35,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eyeIcon: {
+    color: "#4B201D",
+    fontSize: 20,
+  },
+  errorBanner: {
+    backgroundColor: "#FBDCDC",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "#E4A0A0",
+  },
+  errorBannerText: {
+    color: "#8A1F1F",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  dangerButton: {
     height: 61,
-    backgroundColor: "#28552F",
+    backgroundColor: "#8A1F1F",
     borderRadius: 31,
     alignItems: "center",
     justifyContent: "center",
@@ -322,13 +415,13 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  primaryNepali: {
+  dangerNepali: {
     color: "#FFF8ED",
     fontSize: 18,
     fontWeight: "600",
     lineHeight: 25,
   },
-  primaryEnglish: {
+  dangerEnglish: {
     color: "#FFF8ED",
     fontSize: 14,
   },

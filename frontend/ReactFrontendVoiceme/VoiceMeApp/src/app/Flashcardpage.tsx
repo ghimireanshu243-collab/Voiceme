@@ -19,8 +19,8 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 32 - 12) / 2; // 2 columns with 16px screen padding and 12px gap
 
 const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://10.0.2.2:8000'
-  : 'http://localhost:8000';
+  ? 'http://192.168.1.77:8000'
+  : 'http://192.168.1.77:8000';
 
 type Language = 'ne' | 'en';
 

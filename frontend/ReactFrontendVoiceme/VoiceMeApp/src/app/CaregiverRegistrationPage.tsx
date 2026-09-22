@@ -18,8 +18,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const AUTH_TOKEN_KEY = "voiceme.authToken";
 const AUTH_USER_KEY = "voiceme.user";
 const API_BASE_URL = Platform.OS === "android"
-  ? "http://10.0.2.2:8000"
-  : "http://localhost:8000";
+  ? "http://192.168.1.77:8000"
+  : "http://192.168.1.77:8000";
 
 export default function CaregiverRegistrationPage() {
   const [name, setName] = useState("");

@@ -4,10 +4,13 @@ import {
   Text,
   View,
   TouchableOpacity,
+  Pressable,
   SafeAreaView,
   StatusBar,
   ScrollView,
   Platform,
+  Modal,
+  Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,11 +18,12 @@ import Svg, { Path, Circle } from 'react-native-svg';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://10.0.2.2:8000'
-  : 'http://localhost:8000';
+  ? 'http://192.168.1.77:8000'
+  : 'http://192.168.1.77:8000';
 
 interface Contact {
   name?: string;
+  phone?: string;
   id?: string;
 }
 
@@ -40,6 +44,7 @@ export const ChildProfileScreen: React.FC<ChildProfileProps> = ({
   const [caregiver, setCaregiver] = useState<Contact | null>(null);
   const [locationLabel, setLocationLabel] = useState('At home');
   const [updatedLabel, setUpdatedLabel] = useState('Updated 2 minutes ago');
+  const [caregiverModalVisible, setCaregiverModalVisible] = useState(false);
 
   const loadProfile = useCallback(async () => {
     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -72,7 +77,22 @@ export const ChildProfileScreen: React.FC<ChildProfileProps> = ({
   );
 
   const handleOpenCaregiver = () => {
-    router.push('/Caregiverpage');
+    // The parent should see the caregiver's own contact details here (name,
+    // phone, id) — not push them into /Caregiverpage, which is the
+    // caregiver's own operational dashboard (routines, bell controls, etc.)
+    // meant for the caregiver's account, not for the parent to browse.
+    setCaregiverModalVisible(true);
+  };
+
+  const handleCallCaregiver = () => {
+    const phone = caregiver?.phone;
+    if (!phone) return;
+    const cleanNum = phone.replace(/[^0-9+]/g, '');
+    if (Platform.OS === 'web') {
+      window.location.href = `tel:${cleanNum}`;
+    } else {
+      Linking.openURL(`tel:${cleanNum}`).catch(() => {});
+    }
   };
 
   const handleBack = () => {
@@ -224,6 +244,57 @@ export const ChildProfileScreen: React.FC<ChildProfileProps> = ({
         {/* Footer Note */}
         <Text style={styles.footerNote}>Parent controls this profile.</Text>
       </ScrollView>
+
+      {/* Caregiver Profile Modal (read-only view for the parent) */}
+      <Modal
+        visible={caregiverModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCaregiverModalVisible(false)}
+      >
+        <Pressable
+          style={styles.caregiverModalOverlay}
+          onPress={() => setCaregiverModalVisible(false)}
+        >
+          <Pressable style={styles.caregiverModalCard} onPress={() => {}}>
+            <View style={styles.caregiverModalAvatar}>
+              <Text style={{ fontSize: 26 }}>💚</Text>
+            </View>
+
+            <Text style={styles.caregiverModalTitle}>Caregiver Profile</Text>
+
+            <View style={styles.caregiverModalRow}>
+              <Text style={styles.caregiverModalLabel}>Name</Text>
+              <Text style={styles.caregiverModalValue}>{caregiver?.name || 'Not assigned yet'}</Text>
+            </View>
+
+            <View style={styles.caregiverModalRow}>
+              <Text style={styles.caregiverModalLabel}>Phone</Text>
+              <Text style={styles.caregiverModalValue}>{caregiver?.phone || '—'}</Text>
+            </View>
+
+            <View style={styles.caregiverModalRow}>
+              <Text style={styles.caregiverModalLabel}>Caregiver ID</Text>
+              <Text style={styles.caregiverModalValue}>{caregiver?.id || '—'}</Text>
+            </View>
+
+            <View style={styles.caregiverModalBtnGroup}>
+              {caregiver?.phone ? (
+                <TouchableOpacity style={styles.caregiverModalCallBtn} onPress={handleCallCaregiver}>
+                  <Text style={styles.caregiverModalCallBtnText}>📞 Call Caregiver</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.caregiverModalCloseBtn}
+                onPress={() => setCaregiverModalVisible(false)}
+              >
+                <Text style={styles.caregiverModalCloseBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -461,5 +532,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8A847B',
     marginTop: 8,
+  },
+
+  /* Caregiver Profile Modal */
+  caregiverModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  caregiverModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFDF9',
+    borderRadius: 26,
+    padding: 22,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E7DDD0',
+  },
+  caregiverModalAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#DDF0D5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  caregiverModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#243022',
+    marginBottom: 14,
+  },
+  caregiverModalRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE6D8',
+  },
+  caregiverModalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7C6E61',
+  },
+  caregiverModalValue: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#2F2A25',
+  },
+  caregiverModalBtnGroup: {
+    width: '100%',
+    marginTop: 18,
+    gap: 10,
+  },
+  caregiverModalCallBtn: {
+    backgroundColor: '#3F5B39',
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  caregiverModalCallBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  caregiverModalCloseBtn: {
+    backgroundColor: '#EFE6D8',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  caregiverModalCloseBtnText: {
+    color: '#4B2419',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
 });
