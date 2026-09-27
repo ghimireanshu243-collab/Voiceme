@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -205,8 +206,17 @@ export default function Loginpage() {
               }}
               disabled={isSubmitting}
             >
-              <Text style={styles.loginNepali}>लगइन गर्नुहोस्</Text>
-              <Text style={styles.loginEnglish}>Login</Text>
+              {isSubmitting ? (
+                <>
+                  <ActivityIndicator color="#FFF8ED" />
+                  <Text style={styles.loginEnglish}>कृपया पर्खनुहोस् · Please wait…</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.loginNepali}>लगइन गर्नुहोस्</Text>
+                  <Text style={styles.loginEnglish}>Login</Text>
+                </>
+              )}
             </Pressable>
 
             {/* VOICE LOGIN */}

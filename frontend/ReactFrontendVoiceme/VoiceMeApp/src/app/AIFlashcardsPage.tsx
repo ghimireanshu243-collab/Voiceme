@@ -41,6 +41,10 @@ interface LocationContext {
     items: StepCard[];
 }
 
+interface NeedsContext {
+    items: StepCard[];
+}
+
 // Lets the whole thing be demoed today, before the physical GPS band with
 // its WiFi module exists — each button posts the same place_category the
 // real band's coordinates will eventually resolve to server-side.
@@ -51,12 +55,21 @@ const TEST_LOCATIONS: { category: string; label: string; icon: string }[] = [
     { category: 'hospital', label: 'Hospital', icon: '🏥' },
     { category: 'store', label: 'Store', icon: '🏪' },
     { category: 'home', label: 'Home', icon: '🏠' },
+    { category: 'temple', label: 'Temple', icon: '🛕' },
+    { category: 'transport', label: 'Bus', icon: '🚌' },
+    { category: 'library', label: 'Library', icon: '📚' },
 ];
 
 export default function AIFlashcardsPage() {
     const [lang, setLang] = useState<Language>('ne');
     const [timeContext, setTimeContext] = useState<TimeContext | null>(null);
     const [locationContext, setLocationContext] = useState<LocationContext | null>(null);
+    const [nextContext, setNextContext] = useState<TimeContext | null>(null);
+    const [needsContext, setNeedsContext] = useState<NeedsContext | null>(null);
+    // Only the very first load blanks the screen with a spinner; coming back
+    // to this screen (or switching test location) refreshes in place so the
+    // cards never flash away.
+    const hasLoadedRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [simulating, setSimulating] = useState<string | null>(null);
     const [playingId, setPlayingId] = useState<string | null>(null);
@@ -73,7 +86,7 @@ export default function AIFlashcardsPage() {
     const introPlayedRef = useRef<Set<string>>(new Set());
 
     const loadContext = useCallback(async () => {
-        setLoading(true);
+        if (!hasLoadedRef.current) setLoading(true);
         try {
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) {
@@ -88,10 +101,13 @@ export default function AIFlashcardsPage() {
                 const data = await res.json();
                 setTimeContext(data.time_context ?? null);
                 setLocationContext(data.location_context ?? null);
+                setNextContext(data.next_context ?? null);
+                setNeedsContext(data.needs_context ?? null);
             }
         } catch {
             // Offline or backend unreachable: keep showing whatever was last loaded.
         } finally {
+            hasLoadedRef.current = true;
             setLoading(false);
         }
     }, []);
@@ -207,6 +223,37 @@ export default function AIFlashcardsPage() {
         </View>
     );
 
+    // Everyday needs are single "I need..." phrases rather than ordered
+    // steps, so they sit in a compact two-column board instead of a list.
+    const renderNeeds = (items: StepCard[]) => (
+        <View style={styles.needsGrid}>
+            {items.map((step) => {
+                const isPlaying = playingId === step.id;
+                return (
+                    <Pressable
+                        key={step.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={lang === 'ne' ? step.ne : step.en}
+                        style={({ pressed }) => [
+                            styles.needCard,
+                            isPlaying && styles.stepCardActive,
+                            pressed && styles.pressedState,
+                        ]}
+                        onPress={() => handlePlayStep(step)}
+                    >
+                        <Text style={styles.needIcon}>{step.icon}</Text>
+                        <Text style={styles.needTitle} numberOfLines={2}>
+                            {lang === 'ne' ? step.ne : step.en}
+                        </Text>
+                        <Text style={styles.needSub} numberOfLines={1}>
+                            {lang === 'ne' ? step.en : step.ne}
+                        </Text>
+                    </Pressable>
+                );
+            })}
+        </View>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#F4EFE6" />
@@ -258,6 +305,14 @@ export default function AIFlashcardsPage() {
                         )}
                     </View>
 
+                    {nextContext && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionLabel}>⏭️ त्यसपछि (Coming up next)</Text>
+                            <Text style={styles.sectionMeta}>{nextContext.time} · {nextContext.routine_title}</Text>
+                            {renderSteps(nextContext.items)}
+                        </View>
+                    )}
+
                     <View style={styles.section}>
                         <Text style={styles.sectionLabel}>📍 यहाँ छौं (Here now)</Text>
                         {locationContext ? (
@@ -298,6 +353,16 @@ export default function AIFlashcardsPage() {
                             ))}
                         </View>
                     </View>
+
+                    {needsContext && needsContext.items.length > 0 && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionLabel}>💬 मलाई चाहियो (Everyday needs)</Text>
+                            <Text style={styles.sectionMeta}>
+                                जुनसुकै बेला भन्न थिच्नुहोस् · Tap to say it any time
+                            </Text>
+                            {renderNeeds(needsContext.items)}
+                        </View>
+                    )}
                 </ScrollView>
             )}
         </SafeAreaView>
@@ -400,4 +465,24 @@ const styles = StyleSheet.create({
     testLocationChipActive: { backgroundColor: '#FCE5D7', borderColor: '#E8B98F' },
     testLocationIcon: { fontSize: 15 },
     testLocationText: { fontSize: 12.5, fontWeight: '700', color: '#4B382A' },
+    needsGrid: {
+        marginTop: 12,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        rowGap: 8,
+    },
+    needCard: {
+        width: '48.5%',
+        alignItems: 'center',
+        backgroundColor: '#F5EFE6',
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderWidth: 1,
+        borderColor: '#E7DDD0',
+    },
+    needIcon: { fontSize: 28 },
+    needTitle: { marginTop: 6, fontSize: 14.5, fontWeight: '800', color: '#342419', textAlign: 'center' },
+    needSub: { marginTop: 2, fontSize: 11.5, color: '#8A786C', textAlign: 'center' },
 });

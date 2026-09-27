@@ -14,6 +14,7 @@ from routines.services import apply_daily_reset, current_slot_index
 
 from .rules import (
     DEFAULT_ROUTINE_SEQUENCE,
+    EVERYDAY_NEEDS,
     LOCATION_STEP_SEQUENCES,
     ROUTINE_STEP_SEQUENCES,
     match_routine_sequence,
@@ -37,6 +38,14 @@ def _current_routine_item(items):
     return min(items, key=lambda i: i.get('slot_index', 0))
 
 
+def _next_routine_item(items, current):
+    """The routine that comes right after the current one today, if any."""
+    if not current:
+        return None
+    later = [i for i in items if i.get('slot_index', 0) > current.get('slot_index', 0)]
+    return min(later, key=lambda i: i.get('slot_index', 0)) if later else None
+
+
 @api_view(['GET'])
 def contextual_flashcards(request):
     """
@@ -49,16 +58,35 @@ def contextual_flashcards(request):
     if not user_id:
         return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    response_data = {'time_context': None, 'location_context': None}
+    response_data = {
+        'time_context': None,
+        'next_context': None,
+        'location_context': None,
+        # Needs and feelings the child may have to say at any moment, so the
+        # screen always has something useful even with no routine or GPS.
+        'needs_context': {'items': EVERYDAY_NEEDS},
+    }
 
     routine_doc = apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
-    current_item = _current_routine_item((routine_doc or {}).get('items', []))
+    routine_items = (routine_doc or {}).get('items', [])
+    current_item = _current_routine_item(routine_items)
     if current_item:
         sequence = match_routine_sequence(current_item.get('title')) or DEFAULT_ROUTINE_SEQUENCE
         response_data['time_context'] = {
             'routine_title': current_item.get('title'),
             'time': current_item.get('time'),
             'items': sequence,
+        }
+
+    # A heads-up for what's coming next helps with the transition between
+    # activities; only shown when there's a specific sequence for it.
+    next_item = _next_routine_item(routine_items, current_item)
+    next_sequence = match_routine_sequence(next_item.get('title')) if next_item else None
+    if next_sequence:
+        response_data['next_context'] = {
+            'routine_title': next_item.get('title'),
+            'time': next_item.get('time'),
+            'items': next_sequence,
         }
 
     child = children_collection.find_one({'user_id': user_id})
@@ -81,7 +109,7 @@ _ALL_STEPS = {}
 for _rule in ROUTINE_STEP_SEQUENCES:
     for _step in _rule['sequence']:
         _ALL_STEPS[_step['id']] = _step
-for _step in DEFAULT_ROUTINE_SEQUENCE:
+for _step in DEFAULT_ROUTINE_SEQUENCE + EVERYDAY_NEEDS:
     _ALL_STEPS[_step['id']] = _step
 for _sequence in LOCATION_STEP_SEQUENCES.values():
     for _step in _sequence:

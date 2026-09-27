@@ -19,6 +19,9 @@ PLACE_CATEGORY_MAP = {
     'park': 'park', 'playground': 'park', 'garden': 'park', 'nature_reserve': 'park',
     'supermarket': 'store', 'convenience': 'store', 'mall': 'store', 'marketplace': 'store', 'shop': 'store',
     'house': 'home', 'residential': 'home', 'apartments': 'home',
+    'place_of_worship': 'temple', 'temple': 'temple', 'shrine': 'temple',
+    'bus_station': 'transport', 'bus_stop': 'transport', 'station': 'transport', 'taxi': 'transport',
+    'library': 'library',
 }
 
 

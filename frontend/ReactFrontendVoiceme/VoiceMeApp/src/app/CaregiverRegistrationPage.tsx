@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -77,7 +78,22 @@ export default function CaregiverRegistrationPage() {
     })();
   }, []);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Account creation (and the login fallback) each spend about a second
+  // hashing the password server-side, so show progress and ignore extra
+  // taps instead of looking frozen.
   const handleContinue = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await submitRegistration();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitRegistration = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
       setDialogInfo({
         visible: true,
@@ -355,16 +371,27 @@ export default function CaregiverRegistrationPage() {
                 style={({ pressed }) => [
                   styles.continueButton,
                   pressed && styles.buttonPressed,
+                  isSubmitting && { opacity: 0.75 },
                 ]}
                 onPress={handleContinue}
+                disabled={isSubmitting}
               >
-                <Text style={styles.continueNepali}>
-                  अघि बढ्नुहोस्
-                </Text>
+                {isSubmitting ? (
+                  <>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text style={styles.continueEnglish}>कृपया पर्खनुहोस् · Please wait…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.continueNepali}>
+                      अघि बढ्नुहोस्
+                    </Text>
 
-                <Text style={styles.continueEnglish}>
-                  Continue
-                </Text>
+                    <Text style={styles.continueEnglish}>
+                      Continue
+                    </Text>
+                  </>
+                )}
               </Pressable>
 
               {/* Login Link */}

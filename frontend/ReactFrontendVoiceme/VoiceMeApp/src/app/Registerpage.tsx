@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -278,8 +279,17 @@ export default function CreateAccountScreen() {
                             }}
                             disabled={isSubmitting}
                         >
-                            <Text style={styles.buttonTextNepali}>अघि बढ्नुहोस्</Text>
-                            <Text style={styles.buttonTextEnglish}>Continue</Text>
+                            {isSubmitting ? (
+                                <>
+                                    <ActivityIndicator color="#FFFFFF" />
+                                    <Text style={styles.buttonTextEnglish}>कृपया पर्खनुहोस् · Please wait…</Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={styles.buttonTextNepali}>अघि बढ्नुहोस्</Text>
+                                    <Text style={styles.buttonTextEnglish}>Continue</Text>
+                                </>
+                            )}
                         </Pressable>
 
                         {/* Footer: Already have an account? Login */}
