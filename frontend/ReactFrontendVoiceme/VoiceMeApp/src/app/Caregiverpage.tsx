@@ -180,8 +180,12 @@ function CaregiverDashboard() {
   const [childName, setChildName] = useState('आरव (Aarav)');
   const [childAge, setChildAge] = useState('६ वर्ष (6 yrs)');
   const [childAvatar, setChildAvatar] = useState('👦');
-  const [parentName, setParentName] = useState('सिता शर्मा (Sita Sharma)');
-  const [emergencyPhone, setEmergencyPhone] = useState('९८४१२३४५६७');
+  // Empty until real contact details load, so the caregiver is never
+  // offered a made-up number to call in an emergency.
+  const [parentName, setParentName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [doctorName, setDoctorName] = useState('');
+  const [doctorPhone, setDoctorPhone] = useState('');
   const [caregiverName, setCaregiverName] = useState('माया घिमिरे (Maya Ghimire)');
 
   const [isBellActive, setIsBellActive] = useState(false);
@@ -252,6 +256,8 @@ function CaregiverDashboard() {
         if (child.avatar?.trim()) setChildAvatar(child.avatar.trim());
         if (child.parent?.name) setParentName(child.parent.name);
         if (child.parent?.phone) setEmergencyPhone(child.parent.phone);
+        if (child.doctor?.name) setDoctorName(child.doctor.name);
+        if (child.doctor?.phone) setDoctorPhone(child.doctor.phone);
         if (child.caregiver?.name) setCaregiverName(child.caregiver.name);
       } catch {
         // Offline or backend unreachable: keep whatever is currently shown.
@@ -330,6 +336,7 @@ function CaregiverDashboard() {
   };
 
   const handleCallParent = () => {
+    if (!emergencyPhone) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
@@ -338,24 +345,25 @@ function CaregiverDashboard() {
       visible: true,
       titleNe: 'अभिभावकलाई सम्पर्क',
       titleEn: 'Call Parent',
-      message: `आमा/अभिभावक: ${parentName}\nफोन नम्बर: ${emergencyPhone}`,
+      message: `आमा/अभिभावक: ${parentName || '—'}\nफोन नम्बर: ${emergencyPhone}`,
       phone: emergencyPhone,
       actionText: 'कल गर्नुहोस् (Call Now)',
     });
   };
 
   const handleCallDoctor = () => {
+    if (!doctorPhone) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch {}
 
     setDialogInfo({
       visible: true,
-      titleNe: 'डाक्टर / आपतकालीन क्लिनिक',
-      titleEn: 'Doctor / Emergency Clinic',
-      message: 'बालरोग विशेषज्ञ: डा. रमेश अधिकारी\nक्लिनिक सम्पर्क: ०१-४२५६७८९',
-      phone: '014256789',
-      actionText: 'क्लिनिकमा फोन गर्नुहोस् (Call Clinic)',
+      titleNe: 'डाक्टर',
+      titleEn: 'Doctor',
+      message: `डाक्टर: ${doctorName || '—'}\nफोन नम्बर: ${doctorPhone}`,
+      phone: doctorPhone,
+      actionText: 'डाक्टरलाई फोन गर्नुहोस् (Call Doctor)',
     });
   };
 
@@ -610,21 +618,43 @@ function CaregiverDashboard() {
 
         <View style={styles.contactRow}>
           <Pressable
-            style={({ pressed }) => [styles.contactButton, pressed && styles.pressedState]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !emergencyPhone }}
+            disabled={!emergencyPhone}
+            style={({ pressed }) => [
+              styles.contactButton,
+              !emergencyPhone && styles.contactButtonDisabled,
+              pressed && styles.pressedState,
+            ]}
             onPress={handleCallParent}
           >
             <Text style={styles.contactIcon}>👩‍👦</Text>
             <Text style={styles.contactTitle}>आमा / अभिभावक</Text>
-            <Text style={styles.contactSubtitle}>{parentName}</Text>
+            <Text style={styles.contactSubtitle}>
+              {emergencyPhone
+                ? parentName || emergencyPhone
+                : 'अझै थपिएको छैन (Not added yet)'}
+            </Text>
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [styles.contactButton, pressed && styles.pressedState]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !doctorPhone }}
+            disabled={!doctorPhone}
+            style={({ pressed }) => [
+              styles.contactButton,
+              !doctorPhone && styles.contactButtonDisabled,
+              pressed && styles.pressedState,
+            ]}
             onPress={handleCallDoctor}
           >
             <Text style={styles.contactIcon}>🩺</Text>
-            <Text style={styles.contactTitle}>डाक्टर / क्लिनिक</Text>
-            <Text style={styles.contactSubtitle}>डा. रमेश (Clinic)</Text>
+            <Text style={styles.contactTitle}>डाक्टर (Doctor)</Text>
+            <Text style={styles.contactSubtitle}>
+              {doctorPhone
+                ? doctorName || doctorPhone
+                : 'अझै थपिएको छैन (Not added yet)'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -1086,6 +1116,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8DED2',
+  },
+  contactButtonDisabled: {
+    opacity: 0.55,
   },
   contactIcon: {
     fontSize: 28,

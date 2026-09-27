@@ -102,6 +102,8 @@ export default function ChildRegistrationPage() {
   const [selectedAvatar, setSelectedAvatar] = useState("👦");
   const [parentName, setParentName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [doctorName, setDoctorName] = useState("");
+  const [doctorPhone, setDoctorPhone] = useState("");
 
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(14); // 07:00 AM
   const [routineDraftTitle, setRoutineDraftTitle] = useState("");
@@ -128,6 +130,8 @@ export default function ChildRegistrationPage() {
       "voiceme.registeredAvatar",
       "voiceme.parentName",
       "voiceme.emergencyPhone",
+      "voiceme.doctorName",
+      "voiceme.doctorPhone",
     ])
       .then((entries) => {
         const name = entries[0][1];
@@ -135,6 +139,8 @@ export default function ChildRegistrationPage() {
         const avatar = entries[2][1];
         const parent = entries[3][1];
         const phone = entries[4][1];
+        const savedDoctorName = entries[5][1];
+        const savedDoctorPhone = entries[6][1];
 
         if (name?.trim()) setChildName(name.trim());
         if (age?.trim()) {
@@ -145,6 +151,8 @@ export default function ChildRegistrationPage() {
         if (avatar?.trim()) setSelectedAvatar(avatar.trim());
         if (parent?.trim()) setParentName(parent.trim());
         if (phone?.trim()) setEmergencyPhone(phone.trim());
+        if (savedDoctorName?.trim()) setDoctorName(savedDoctorName.trim());
+        if (savedDoctorPhone?.trim()) setDoctorPhone(savedDoctorPhone.trim());
       })
       .catch(() => {});
 
@@ -169,6 +177,8 @@ export default function ChildRegistrationPage() {
         if (profile.avatar?.trim()) setSelectedAvatar(profile.avatar.trim());
         if (profile.parent?.name) setParentName(profile.parent.name);
         if (profile.parent?.phone) setEmergencyPhone(profile.parent.phone);
+        if (profile.doctor?.name) setDoctorName(profile.doctor.name);
+        if (profile.doctor?.phone) setDoctorPhone(profile.doctor.phone);
       } catch {
         // Offline or backend unreachable: keep the AsyncStorage-loaded values.
       }
@@ -251,6 +261,18 @@ export default function ChildRegistrationPage() {
       return;
     }
 
+    // The doctor is optional, but a half-filled contact is useless in an
+    // emergency, so require both the name and the number once either is set.
+    if (Boolean(doctorName.trim()) !== Boolean(doctorPhone.trim())) {
+      setDialogInfo({
+        visible: true,
+        titleNe: "अपूर्ण विवरण",
+        titleEn: "Incomplete Details",
+        message: "कृपया डाक्टरको नाम र फोन नम्बर दुवै राख्नुहोस् (Please enter both the doctor's name and phone number)",
+      });
+      return;
+    }
+
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {}
@@ -263,6 +285,8 @@ export default function ChildRegistrationPage() {
         ["voiceme.registeredAvatar", selectedAvatar],
         ["voiceme.parentName", parentName.trim()],
         ["voiceme.emergencyPhone", emergencyPhone.trim()],
+        ["voiceme.doctorName", doctorName.trim()],
+        ["voiceme.doctorPhone", doctorPhone.trim()],
         ["voiceme.currentRole", "user"],
       ]);
     } catch {}
@@ -286,6 +310,9 @@ export default function ChildRegistrationPage() {
             age: `${childAge.trim()} वर्ष (${childAge.trim()} yrs)`,
             avatar: selectedAvatar,
             parent: { name: parentName.trim(), phone: emergencyPhone.trim() },
+            ...(doctorName.trim() && doctorPhone.trim()
+              ? { doctor: { name: doctorName.trim(), phone: doctorPhone.trim() } }
+              : {}),
           }),
         });
         if (res.ok) {
@@ -493,6 +520,48 @@ export default function ChildRegistrationPage() {
                   placeholderTextColor="#7C6356"
                   keyboardType="phone-pad"
                   maxLength={10}
+                />
+              </View>
+            </View>
+
+            {/* Doctor Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                डाक्टरको नाम (Doctor's Name)
+              </Text>
+
+              <View style={styles.inputPill}>
+                <Text style={styles.inputIcon}>🩺</Text>
+
+                <TextInput
+                  style={styles.textInput}
+                  value={doctorName}
+                  onChangeText={setDoctorName}
+                  placeholder="e.g. Dr. Ramesh Adhikari"
+                  placeholderTextColor="#7C6356"
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            {/* Doctor Phone */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                डाक्टरको फोन (Doctor's Phone)
+              </Text>
+
+              <View style={styles.inputPill}>
+                <Text style={styles.inputIcon}>📞</Text>
+
+                <TextInput
+                  style={styles.textInput}
+                  value={doctorPhone}
+                  onChangeText={setDoctorPhone}
+                  placeholder="98XXXXXXXX / 01XXXXXXX"
+                  placeholderTextColor="#7C6356"
+                  keyboardType="phone-pad"
+                  maxLength={15}
                 />
               </View>
             </View>

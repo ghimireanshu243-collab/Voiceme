@@ -17,6 +17,8 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '@/constants/api';
+import { dialPhone } from '@/constants/phone';
 
 interface RoutineItem {
   id: string;
@@ -47,6 +49,7 @@ export default function Parentspage() {
   const [emergencyPhone, setEmergencyPhone] = useState('९८४१११२२३३');
   const [caregiverName, setCaregiverName] = useState('माया घिमिरे (Maya Ghimire)');
   const [caregiverPhone, setCaregiverPhone] = useState('९८४१११२२३३');
+  const [doctor, setDoctor] = useState<{ name?: string; phone?: string } | null>(null);
   const [speechRate, setSpeechRate] = useState<number>(0.95);
   const [geofenceEnabled, setGeofenceEnabled] = useState(true);
   const [bellPushNotification, setBellPushNotification] = useState(true);
@@ -76,6 +79,8 @@ export default function Parentspage() {
       'voiceme.emergencyPhone',
       'voiceme.caregiverName',
       'voiceme.caregiverPhone',
+      'voiceme.doctorName',
+      'voiceme.doctorPhone',
       'voiceme.speechRate',
       'voiceme.geofenceEnabled',
       'voiceme.bellPushNotification',
@@ -83,6 +88,13 @@ export default function Parentspage() {
       ROUTINE_STORAGE_KEY,
     ])
       .then((stores) => {
+        const saved = Object.fromEntries(stores);
+        if (saved['voiceme.doctorName'] || saved['voiceme.doctorPhone']) {
+          setDoctor((prev) => prev ?? {
+            name: saved['voiceme.doctorName'] || undefined,
+            phone: saved['voiceme.doctorPhone'] || undefined,
+          });
+        }
         stores.forEach(([key, val]) => {
           if (!val) return;
           if (key === 'voiceme.registeredName') setChildName(val);
@@ -107,6 +119,21 @@ export default function Parentspage() {
         });
       })
       .catch(() => {});
+
+    // The doctor is entered at child registration and stored on the
+    // backend profile; this page only shows it (edit via Register).
+    (async () => {
+      const token = await AsyncStorage.getItem('voiceme.authToken');
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/child/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const profile = await res.json();
+        if (profile.doctor) setDoctor(profile.doctor);
+      } catch {}
+    })();
 
     // Only periodically poll the real-time Attention Bell alert status (never overwrite typed fields)
     const interval = setInterval(() => {
@@ -535,6 +562,31 @@ export default function Parentspage() {
             >
               <Text style={styles.caregiverCallText}>ड्यासबोर्ड ›</Text>
             </Pressable>
+          </View>
+
+          {/* Doctor (view only — set at child registration) */}
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>डाक्टर (Doctor):</Text>
+          <View style={styles.caregiverBox}>
+            <View style={styles.caregiverIcon}>
+              <Text style={{ fontSize: 24 }}>🩺</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.caregiverName}>{doctor?.name || 'अझै थपिएको छैन (Not added yet)'}</Text>
+              <Text style={styles.caregiverRole}>बालबालिकाको डाक्टर · Child's Doctor</Text>
+              {doctor?.phone ? (
+                <Text style={styles.caregiverPhone}>📞 {doctor.phone}</Text>
+              ) : null}
+            </View>
+            {doctor?.phone ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Call doctor"
+                style={styles.caregiverCallBtn}
+                onPress={() => dialPhone(doctor.phone)}
+              >
+                <Text style={styles.caregiverCallText}>📞 कल</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 

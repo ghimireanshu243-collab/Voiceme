@@ -97,6 +97,9 @@ def _serialize_child(child, include_connect_code=True):
         'avatar': child.get('avatar', ''),
         'caregiver': _public_contact(child.get('caregiver')),
         'parent': _public_contact(child.get('parent')),
+        # The child's doctor, entered with the parent's details at child
+        # registration; the parent and caregiver both see it and can call it.
+        'doctor': _public_contact(child.get('doctor')),
         'gps': child.get('gps', {'connected': False, 'location_label': None, 'place_category': None, 'updated_at': None}),
     }
     if include_connect_code:
@@ -130,6 +133,8 @@ def child_profile(request):
         update_fields['caregiver'] = _merge_contact(existing.get('caregiver'), data.get('caregiver'), 'CG')
     if data.get('parent') is not None:
         update_fields['parent'] = _merge_contact(existing.get('parent'), data.get('parent'), 'P')
+    if data.get('doctor') is not None:
+        update_fields['doctor'] = _merge_contact(existing.get('doctor'), data.get('doctor'), 'DR')
 
     if not update_fields:
         return Response({'error': 'No profile fields provided.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -275,4 +280,5 @@ def trigger_sos(request):
         'location_label': location_label,
         'caregiver': _public_contact(child.get('caregiver')),
         'parent': _public_contact(child.get('parent')),
+        'doctor': _public_contact(child.get('doctor')),
     }, status=status.HTTP_201_CREATED)

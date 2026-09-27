@@ -93,6 +93,7 @@ interface Contact {
 export default function SOSpage() {
   const [caregiver, setCaregiver] = useState<Contact | null>(null);
   const [parent, setParent] = useState<Contact | null>(null);
+  const [doctor, setDoctor] = useState<Contact | null>(null);
   const [locationLabel, setLocationLabel] = useState('घर (Ward 4 Home Safe Zone)');
 
   useEffect(() => {
@@ -131,6 +132,7 @@ export default function SOSpage() {
         const alert = await res.json();
         if (alert.caregiver) setCaregiver(alert.caregiver);
         if (alert.parent) setParent(alert.parent);
+        if (alert.doctor) setDoctor(alert.doctor);
         if (alert.location_label) setLocationLabel(alert.location_label);
 
         // This screen only exists because SOS was just triggered, so the
@@ -143,6 +145,10 @@ export default function SOSpage() {
       }
     })();
   }, []);
+
+  // Only a real saved contact is ever offered here — never a placeholder
+  // number that would dial a stranger in an emergency.
+  const contactPhone = caregiver?.phone || parent?.phone;
 
   const handleCall = (label: string, number: string) => {
     Alert.alert(
@@ -230,10 +236,12 @@ export default function SOSpage() {
         {/* Emergency Dispatch Calls */}
         <View style={styles.callsContainer}>
           <TouchableOpacity
-            style={[styles.callBtn, styles.callCaregiverBtn]}
-            onPress={() => handleCall(
-              `स्याहारकर्ता (${caregiver?.name || 'Caregiver'})`,
-              caregiver?.phone || parent?.phone || '९८४१११२२३३'
+            style={[styles.callBtn, styles.callCaregiverBtn, !contactPhone && styles.callBtnDisabled]}
+            disabled={!contactPhone}
+            accessibilityState={{ disabled: !contactPhone }}
+            onPress={() => contactPhone && handleCall(
+              `स्याहारकर्ता (${caregiver?.name || parent?.name || 'Caregiver'})`,
+              contactPhone
             )}
             activeOpacity={0.85}
           >
@@ -241,7 +249,30 @@ export default function SOSpage() {
             <View style={styles.callTexts}>
               <Text style={styles.callTitle}>स्याहारकर्तालाई तुरुन्त कल</Text>
               <Text style={styles.callSub}>
-                Call Caregiver • {caregiver?.phone || parent?.phone || '९८४१११२२३३'}
+                {contactPhone
+                  ? `Call Caregiver • ${contactPhone}`
+                  : 'कुनै सम्पर्क थपिएको छैन · No contact added — use Police / Ambulance'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.callBtn, styles.callDoctorBtn, !doctor?.phone && styles.callBtnDisabled]}
+            disabled={!doctor?.phone}
+            accessibilityState={{ disabled: !doctor?.phone }}
+            onPress={() => doctor?.phone && handleCall(
+              `डाक्टर (${doctor.name || 'Doctor'})`,
+              doctor.phone
+            )}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.callIcon}>🩺</Text>
+            <View style={styles.callTexts}>
+              <Text style={styles.callTitle}>डाक्टरलाई कल (Call Doctor)</Text>
+              <Text style={styles.callSub}>
+                {doctor?.phone
+                  ? `${doctor.name || 'Doctor'} • ${doctor.phone}`
+                  : 'डाक्टर थपिएको छैन · No doctor added'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -413,10 +444,18 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 16,
   },
+  callBtnDisabled: {
+    opacity: 0.6,
+  },
   callCaregiverBtn: {
     backgroundColor: '#E8F5E5',
     borderWidth: 1.5,
     borderColor: '#BEE0B7',
+  },
+  callDoctorBtn: {
+    backgroundColor: '#FFF4E0',
+    borderWidth: 1.5,
+    borderColor: '#F3D49B',
   },
   callPoliceBtn: {
     backgroundColor: '#E6EFFB',
