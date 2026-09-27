@@ -14,6 +14,7 @@ import Svg, { Path, Rect, Circle, Ellipse } from 'react-native-svg';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { useAppLanguage } from '@/hooks/use-app-language';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 32 - 12) / 2; // 2 columns with 16px screen padding and 12px gap
@@ -219,7 +220,7 @@ const CardIllustration: React.FC<{ type: string; accentColor: string }> = ({ typ
 };
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('ne');
+  const [lang, setLang] = useAppLanguage();
   const [selectedCard, setSelectedCard] = useState<Flashcard>(FLASHCARDS[0]); // Default to Food / खाना
   const [speakingLanguage, setSpeakingLanguage] = useState<Language | null>(null);
 
@@ -231,11 +232,7 @@ export default function App() {
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
   const playRequestId = useRef(0);
-  const lastPlaybackRef = useRef<{ requestId: number; card: Flashcard; lang: Language } | null>(null);
   const isPlayingRef = useRef(false);
-  // Cards that have already had their one-time Nepali -> English intro. After
-  // that, a tap plays exactly the language tapped and nothing else chains.
-  const introPlayedRef = useRef<Set<string>>(new Set());
 
   // Backend-generated speech for either Nepali or English
   const speakCard = async (card: Flashcard, targetLang: Language) => {
@@ -248,7 +245,7 @@ export default function App() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
 
-    const thisRequest = ++playRequestId.current;
+    ++playRequestId.current;
     isPlayingRef.current = true;
     setSpeakingLanguage(targetLang);
 
@@ -260,7 +257,6 @@ export default function App() {
       // (same card, same language tapped again after finishing) so it
       // always replays from the beginning instead of silently no-op'ing.
       await player.seekTo(0);
-      lastPlaybackRef.current = { requestId: thisRequest, card, lang: targetLang };
       player.play();
     } catch (e) {
       console.warn(e);
@@ -274,21 +270,20 @@ export default function App() {
 
     isPlayingRef.current = false;
     setSpeakingLanguage(null);
-
-    // Chain straight into English right after Nepali finishes, but only the
-    // very first time a given card is played. After that one-time intro,
-    // each card is its own thing: a tap plays only the language tapped.
-    const finished = lastPlaybackRef.current;
-    if (
-      finished &&
-      finished.requestId === playRequestId.current &&
-      finished.lang === 'ne' &&
-      !introPlayedRef.current.has(finished.card.id)
-    ) {
-      introPlayedRef.current.add(finished.card.id);
-      speakCard(finished.card, 'en');
-    }
   }, [playerStatus.didJustFinish]);
+
+  // Switching language stops whatever is playing right away, so the very
+  // next tap speaks in the newly chosen language instead of being ignored
+  // until the old clip ends. A tap only ever plays the chosen language.
+  const changeLanguage = (next: Language) => {
+    if (next === lang) return;
+    try { Haptics.selectionAsync(); } catch {}
+    ++playRequestId.current;
+    try { player.pause(); } catch {}
+    isPlayingRef.current = false;
+    setSpeakingLanguage(null);
+    setLang(next);
+  };
 
   // When a card box is clicked
   const handleCardPress = (card: Flashcard) => {
@@ -326,16 +321,15 @@ export default function App() {
           <Text style={styles.title}>
             {lang === 'ne' ? 'फ्लैशकार्ड' : 'Flashcards'}
           </Text>
-          <Text style={styles.subtitle}>tap a card to hear it</Text>
+          <Text style={styles.subtitle}>
+            {lang === 'ne' ? 'सुन्न कार्ड थिच्नुहोस्' : 'tap a card to hear it'}
+          </Text>
         </View>
 
         {/* Bilingual Switcher (ने / EN) */}
         <View style={styles.togglePill}>
           <Pressable
-            onPress={() => {
-              setLang('ne');
-              try { Haptics.selectionAsync(); } catch {}
-            }}
+            onPress={() => changeLanguage('ne')}
             style={[styles.toggleBtn, lang === 'ne' && styles.toggleBtnActive]}
           >
             <Text style={[styles.toggleBtnText, lang === 'ne' && styles.toggleBtnTextActive]}>
@@ -344,10 +338,7 @@ export default function App() {
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              setLang('en');
-              try { Haptics.selectionAsync(); } catch {}
-            }}
+            onPress={() => changeLanguage('en')}
             style={[styles.toggleBtn, lang === 'en' && styles.toggleBtnActive]}
           >
             <Text style={[styles.toggleBtnText, lang === 'en' && styles.toggleBtnTextActive]}>
@@ -426,10 +417,14 @@ export default function App() {
             <View style={styles.activeIndicatorRow}>
               <View style={styles.greenDot} />
               <Text style={styles.activeCardText}>
-                {selectedCard.wordEn} · {selectedCard.wordNe}
+                {lang === 'ne'
+                  ? `${selectedCard.wordNe} · ${selectedCard.wordEn}`
+                  : `${selectedCard.wordEn} · ${selectedCard.wordNe}`}
               </Text>
             </View>
-            <Text style={styles.tapPromptText}>Tap word to speak:</Text>
+            <Text style={styles.tapPromptText}>
+              {lang === 'ne' ? 'बोल्न शब्द थिच्नुहोस्:' : 'Tap word to speak:'}
+            </Text>
           </View>
 
           {/* Dual Language Buttons */}
