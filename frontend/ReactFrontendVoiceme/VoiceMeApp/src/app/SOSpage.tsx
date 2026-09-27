@@ -9,7 +9,6 @@ import {
   ScrollView,
   Alert,
   Platform,
-  Linking,
   Vibration,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -19,6 +18,7 @@ import * as Speech from 'expo-speech';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import Svg, { Path } from 'react-native-svg';
 import { API_BASE_URL } from '@/constants/api';
+import { dialPhone } from '@/constants/phone';
 
 // expo-notifications throws on import when running inside the Expo Go app
 // (SDK 53 dropped it from Expo Go entirely, not just remote push), which
@@ -137,22 +137,12 @@ export default function SOSpage() {
         // call happens immediately and automatically — an emergency isn't
         // the moment to make someone find and tap a "call" button too.
         const emergencyPhone = alert.caregiver?.phone || alert.parent?.phone;
-        if (emergencyPhone) dialNumber(emergencyPhone);
+        if (emergencyPhone) dialPhone(emergencyPhone);
       } catch {
         // Offline or backend unreachable: fall back to the placeholder contacts below.
       }
     })();
   }, []);
-
-  const dialNumber = (phone?: string) => {
-    if (!phone) return;
-    const cleanNum = phone.replace(/[^0-9+]/g, '');
-    if (Platform.OS === 'web') {
-      window.location.href = `tel:${cleanNum}`;
-    } else {
-      Linking.openURL(`tel:${cleanNum}`).catch(() => {});
-    }
-  };
 
   const handleCall = (label: string, number: string) => {
     Alert.alert(
@@ -160,7 +150,7 @@ export default function SOSpage() {
       `Initiating emergency call to ${number}?`,
       [
         { text: 'रद्द (Cancel)', style: 'cancel' },
-        { text: 'कल गर्नुहोस् (Call Now)', onPress: () => dialNumber(number) },
+        { text: 'कल गर्नुहोस् (Call Now)', onPress: () => dialPhone(number) },
       ]
     );
   };

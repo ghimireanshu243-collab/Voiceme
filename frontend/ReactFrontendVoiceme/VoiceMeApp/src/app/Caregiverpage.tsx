@@ -10,7 +10,6 @@ import {
   Platform,
   Switch,
   Modal,
-  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
@@ -18,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@/constants/api';
+import { dialPhone } from '@/constants/phone';
 
 // Shape returned by /api/caregiver/routines/ — the connected child's own
 // routine, which the caregiver can only watch, never set or edit.
@@ -32,16 +32,6 @@ interface RoutineItem {
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 
 const SELECTED_ROLE_KEY = 'voiceme.selectedRole';
-
-const callNumber = (phone?: string) => {
-  if (!phone) return;
-  const cleanNum = phone.replace(/[^0-9+]/g, '');
-  if (Platform.OS === 'web') {
-    window.location.href = `tel:${cleanNum}`;
-  } else {
-    Linking.openURL(`tel:${cleanNum}`).catch(() => {});
-  }
-};
 
 export default function Caregiverpage() {
   // Parents (the child's own "user" account) are supervisors here, not the
@@ -165,7 +155,7 @@ function CaregiverInfoView() {
                 accessibilityRole="button"
                 accessibilityLabel="Call caregiver"
                 style={({ pressed }) => [styles.dialogActionBtn, { marginTop: 12 }, pressed && styles.pressedState]}
-                onPress={() => callNumber(caregiver.phone)}
+                onPress={() => dialPhone(caregiver.phone)}
               >
                 <Text style={styles.dialogActionBtnText}>📞 कल गर्नुहोस् (Call)</Text>
               </Pressable>
@@ -410,12 +400,7 @@ function CaregiverDashboard() {
       setDialogInfo((prev) => ({ ...prev, visible: false }));
       return;
     }
-    const cleanNum = phone.replace(/[^0-9+]/g, '');
-    if (Platform.OS === 'web') {
-      window.location.href = `tel:${cleanNum}`;
-    } else {
-      Linking.openURL(`tel:${cleanNum}`).catch(() => {});
-    }
+    dialPhone(phone);
     setDialogInfo((prev) => ({ ...prev, visible: false }));
   };
 

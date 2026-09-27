@@ -10,12 +10,12 @@ import {
   ScrollView,
   Platform,
   Modal,
-  Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { API_BASE_URL } from '@/constants/api';
+import { dialPhone } from '@/constants/phone';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 
@@ -83,14 +83,7 @@ export const ChildProfileScreen: React.FC<ChildProfileProps> = ({
   };
 
   const handleCallCaregiver = () => {
-    const phone = caregiver?.phone;
-    if (!phone) return;
-    const cleanNum = phone.replace(/[^0-9+]/g, '');
-    if (Platform.OS === 'web') {
-      window.location.href = `tel:${cleanNum}`;
-    } else {
-      Linking.openURL(`tel:${cleanNum}`).catch(() => {});
-    }
+    dialPhone(caregiver?.phone);
   };
 
   const handleBack = () => {
