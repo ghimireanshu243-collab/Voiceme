@@ -12,7 +12,7 @@ import {
   Modal,
   Linking,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
@@ -90,7 +90,162 @@ const DEFAULT_ROUTINES: RoutineItem[] = [
   },
 ];
 
+const SELECTED_ROLE_KEY = 'voiceme.selectedRole';
+
+const callNumber = (phone?: string) => {
+  if (!phone) return;
+  const cleanNum = phone.replace(/[^0-9+]/g, '');
+  if (Platform.OS === 'web') {
+    window.location.href = `tel:${cleanNum}`;
+  } else {
+    Linking.openURL(`tel:${cleanNum}`).catch(() => {});
+  }
+};
+
 export default function Caregiverpage() {
+  // Parents (the child's own "user" account) are supervisors here, not the
+  // caregiver: they only get to see who the caregiver is and how to reach
+  // them. The operational dashboard (bell, routine tracking, links into the
+  // routine editor) belongs to the caregiver's own account only — routines
+  // are set for the child, never for the caregiver.
+  const { viewer } = useLocalSearchParams<{ viewer?: string }>();
+  const [isParentViewer, setIsParentViewer] = useState<boolean | null>(
+    viewer === 'parent' ? true : null
+  );
+
+  useEffect(() => {
+    if (viewer === 'parent') return;
+    AsyncStorage.getItem(SELECTED_ROLE_KEY)
+      .then((role) => setIsParentViewer(role === 'user'))
+      .catch(() => setIsParentViewer(false));
+  }, [viewer]);
+
+  if (isParentViewer === null) {
+    return <SafeAreaView style={styles.safeArea} />;
+  }
+  return isParentViewer ? <CaregiverInfoView /> : <CaregiverDashboard />;
+}
+
+function CaregiverInfoView() {
+  const [caregiver, setCaregiver] = useState<{ name?: string; phone?: string } | null>(null);
+
+  useEffect(() => {
+    // Same-device values saved from Parentspage, then the backend's copy
+    // (the one the caregiver's connect-code registration actually updates).
+    AsyncStorage.multiGet(['voiceme.caregiverName', 'voiceme.caregiverPhone'])
+      .then((entries) => {
+        const map = Object.fromEntries(entries);
+        const name = map['voiceme.caregiverName']?.trim();
+        const phone = map['voiceme.caregiverPhone']?.trim();
+        if (name || phone) setCaregiver((prev) => prev ?? { name, phone });
+      })
+      .catch(() => {});
+
+    (async () => {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/child/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const profile = await res.json();
+        if (profile.caregiver) setCaregiver(profile.caregiver);
+      } catch {
+        // Offline or backend unreachable: keep whatever is currently shown.
+      }
+    })();
+  }, []);
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/Parentspage');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="#F4EFE6"
+        translucent={Platform.OS === 'android'}
+      />
+
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressedState]}
+          onPress={handleBack}
+        >
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M15 18L9 12L15 6"
+              stroke="#342419"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={styles.backButtonText}>पछाडि · Back</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.titleSection}>
+          <Text style={styles.nepaliTitle}>हेरचाहकर्ता विवरण</Text>
+          <Text style={styles.englishTitle}>Caregiver Info</Text>
+          <Text style={styles.subtitleDesc}>
+            तपाईंको बच्चाको हेरचाहकर्ताको सम्पर्क जानकारी
+          </Text>
+        </View>
+
+        {caregiver?.name || caregiver?.phone ? (
+          <View style={styles.childStatusCard}>
+            <View style={styles.childHeaderRow}>
+              <View style={styles.childAvatarCircle}>
+                <Text style={styles.avatarEmoji}>💚</Text>
+              </View>
+              <View style={styles.childInfoText}>
+                <Text style={styles.childName}>{caregiver.name || '—'}</Text>
+                <Text style={styles.childMeta}>प्राथमिक हेरचाहकर्ता · Primary Caregiver</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>📞 फोन (Phone):</Text>
+              <Text style={styles.statusValue}>{caregiver.phone || '—'}</Text>
+            </View>
+
+            {caregiver.phone ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Call caregiver"
+                style={({ pressed }) => [styles.dialogActionBtn, { marginTop: 12 }, pressed && styles.pressedState]}
+                onPress={() => callNumber(caregiver.phone)}
+              >
+                <Text style={styles.dialogActionBtnText}>📞 कल गर्नुहोस् (Call)</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <View style={styles.notConnectedBanner}>
+            <Text style={styles.notConnectedText}>
+              ⚠️ अझै कुनै हेरचाहकर्ता जोडिएको छैन।
+            </Text>
+            <Text style={styles.notConnectedSubText}>
+              No caregiver connected yet — share your connect code with them.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function CaregiverDashboard() {
   const [childName, setChildName] = useState('आरव (Aarav)');
   const [childAge, setChildAge] = useState('६ वर्ष (6 yrs)');
   const [childAvatar, setChildAvatar] = useState('👦');

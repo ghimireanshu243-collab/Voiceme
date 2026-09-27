@@ -613,7 +613,7 @@ export default function Homepage({
               style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/Caregiverpage');
+                router.push({ pathname: '/Caregiverpage', params: { viewer: 'parent' } });
               }}
             >
               <Text style={styles.menuItemText}>💚 हेरचाहकर्ता ड्यासबोर्ड (Caregiver)</Text>

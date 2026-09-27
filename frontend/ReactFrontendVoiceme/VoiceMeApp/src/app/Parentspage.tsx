@@ -524,7 +524,7 @@ export default function Parentspage() {
             <Pressable
               style={styles.caregiverCallBtn}
               onPress={() => {
-                router.push('/Caregiverpage');
+                router.push({ pathname: '/Caregiverpage', params: { viewer: 'parent' } });
               }}
             >
               <Text style={styles.caregiverCallText}>ड्यासबोर्ड ›</Text>
@@ -614,7 +614,7 @@ export default function Parentspage() {
           <View style={styles.quickNavGrid}>
             {[
               { title: 'गृहपृष्ठ (Home)', icon: '🏠', route: '/Homepage' as const },
-              { title: 'हेरचाहकर्ता (Caregiver)', icon: '💚', route: '/Caregiverpage' as const },
+              { title: 'हेरचाहकर्ता (Caregiver)', icon: '💚', route: '/Caregiverpage?viewer=parent' as const },
               { title: 'दिनचर्या (Routine)', icon: '📅', route: '/Dailyroutinepage' as const },
               { title: 'ध्यान घण्टी (Bell)', icon: '🔔', route: '/Attentionbellpage' as const },
               { title: 'फ्ल्यासकार्ड (Cards)', icon: '🗂️', route: '/Flashcardpage' as const },
