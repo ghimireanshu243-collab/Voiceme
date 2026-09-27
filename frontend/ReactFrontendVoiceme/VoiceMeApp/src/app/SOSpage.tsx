@@ -16,18 +16,25 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import Svg, { Path } from 'react-native-svg';
+import { API_BASE_URL } from '@/constants/api';
+
+// expo-notifications throws on import when running inside the Expo Go app
+// (SDK 53 dropped it from Expo Go entirely, not just remote push), which
+// would otherwise crash the whole app since Expo Router eagerly imports
+// every screen. Load it lazily and only outside Expo Go.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+const Notifications: typeof import('expo-notifications') | null = isExpoGo
+  ? null
+  : require('expo-notifications');
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
 
 // By default, a foreground notification is silently queued instead of shown —
 // this makes sure the SOS alert actually pops up and plays its sound even
 // while the app is open and already on this screen.
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
@@ -47,6 +54,8 @@ async function firePopupAndVibrate() {
   } catch {}
 
   try {
+    if (!Notifications) return;
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('sos-alerts', {
         name: 'Emergency SOS',

@@ -14,11 +14,9 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
+import { API_BASE_URL } from '@/constants/api';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
-const API_BASE_URL = Platform.OS === 'android'
-    ? 'http://192.168.1.77:8000'
-    : 'http://192.168.1.77:8000';
 
 type Language = 'ne' | 'en';
 

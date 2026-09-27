@@ -17,14 +17,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Rect, Circle, Line, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { API_BASE_URL } from '@/constants/api';
 
 const REGISTERED_NAME_KEY = 'voiceme.registeredName';
 const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
 const REGISTERED_AVATAR_KEY = 'voiceme.registeredAvatar';
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
 
 interface GPSStatus {
   connected: boolean;

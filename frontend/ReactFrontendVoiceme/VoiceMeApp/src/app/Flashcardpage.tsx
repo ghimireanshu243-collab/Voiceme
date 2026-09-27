@@ -14,13 +14,11 @@ import Svg, { Path, Rect, Circle, Ellipse } from 'react-native-svg';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { API_BASE_URL } from '@/constants/api';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 32 - 12) / 2; // 2 columns with 16px screen padding and 12px gap
 
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
 
 type Language = 'ne' | 'en';
 

@@ -17,6 +17,7 @@ import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '@/constants/api';
 
 interface RoutineItem {
   id: string;
@@ -29,9 +30,6 @@ interface RoutineItem {
 
 const ROUTINE_STORAGE_KEY = 'voiceme.daily_routine_state';
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
 
 const DEFAULT_ROUTINES: RoutineItem[] = [
   {

@@ -12,14 +12,12 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '@/constants/api';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
 const AUTH_USER_KEY = 'voiceme.user';
 const REGISTERED_NAME_KEY = 'voiceme.registeredName';
 const REGISTERED_AGE_KEY = 'voiceme.registeredAge';
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
 
 const persistAuthSession = async (token: string, user: { id?: string; name?: string; email?: string; age?: string | number }) => {
   await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);

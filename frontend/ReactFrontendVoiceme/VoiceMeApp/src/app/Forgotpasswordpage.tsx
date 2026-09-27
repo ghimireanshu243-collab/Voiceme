@@ -13,9 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://192.168.1.77:8000'
-  : 'http://192.168.1.77:8000';
+import { API_BASE_URL } from '@/constants/api';
 
 export default function Forgotpasswordpage() {
   const [email, setEmail] = useState("");
