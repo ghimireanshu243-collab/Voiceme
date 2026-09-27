@@ -19,76 +19,17 @@ import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@/constants/api';
 
+// Shape returned by /api/caregiver/routines/ — the connected child's own
+// routine, which the caregiver can only watch, never set or edit.
 interface RoutineItem {
   id: string;
   time: string;
-  nepaliTitle: string;
-  englishTitle: string;
+  title: string;
   icon: string;
   completed: boolean;
 }
 
-const ROUTINE_STORAGE_KEY = 'voiceme.daily_routine_state';
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
-
-const DEFAULT_ROUTINES: RoutineItem[] = [
-  {
-    id: '1',
-    time: '०७:३० AM',
-    nepaliTitle: 'दाँत माझ्नु',
-    englishTitle: 'Brush teeth',
-    icon: '🪥',
-    completed: true,
-  },
-  {
-    id: '2',
-    time: '०८:०० AM',
-    nepaliTitle: 'बिहानको खाजा',
-    englishTitle: 'Morning breakfast',
-    icon: '🥣',
-    completed: true,
-  },
-  {
-    id: '3',
-    time: '०८:३० AM',
-    nepaliTitle: 'औषधि खानु',
-    englishTitle: 'Morning medicine',
-    icon: '💊',
-    completed: true,
-  },
-  {
-    id: '4',
-    time: '१०:०० AM',
-    nepaliTitle: 'पढाइ र सिकाइ',
-    englishTitle: 'Learning & study',
-    icon: '📚',
-    completed: false,
-  },
-  {
-    id: '5',
-    time: '०१:०० PM',
-    nepaliTitle: 'दिउँसोको खाना',
-    englishTitle: 'Lunch time',
-    icon: '🍱',
-    completed: false,
-  },
-  {
-    id: '6',
-    time: '०४:३० PM',
-    nepaliTitle: 'खेलकुद र रमाइलो',
-    englishTitle: 'Playtime & activity',
-    icon: '⚽',
-    completed: false,
-  },
-  {
-    id: '7',
-    time: '०८:०० PM',
-    nepaliTitle: 'साँझको खाना र सुत्ने',
-    englishTitle: 'Dinner & bedtime',
-    icon: '🌙',
-    completed: false,
-  },
-];
 
 const SELECTED_ROLE_KEY = 'voiceme.selectedRole';
 
@@ -252,11 +193,10 @@ function CaregiverDashboard() {
   const [parentName, setParentName] = useState('सिता शर्मा (Sita Sharma)');
   const [emergencyPhone, setEmergencyPhone] = useState('९८४१२३४५६७');
   const [caregiverName, setCaregiverName] = useState('माया घिमिरे (Maya Ghimire)');
-  const [allowCaregiverEdit, setAllowCaregiverEdit] = useState(true);
 
   const [isBellActive, setIsBellActive] = useState(false);
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(true);
-  const [routines, setRoutines] = useState<RoutineItem[]>(DEFAULT_ROUTINES);
+  const [routines, setRoutines] = useState<RoutineItem[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   const completedCount = routines.filter((r) => r.completed).length;
@@ -277,7 +217,7 @@ function CaregiverDashboard() {
     message: '',
   });
 
-  // Load registered child, caregiver info, routines & bell status from AsyncStorage on mount
+  // Load registered child, caregiver info & bell status from AsyncStorage on mount
   useEffect(() => {
     AsyncStorage.multiGet([
       'voiceme.registeredName',
@@ -286,9 +226,7 @@ function CaregiverDashboard() {
       'voiceme.parentName',
       'voiceme.emergencyPhone',
       'voiceme.caregiverName',
-      'voiceme.allowCaregiverEdit',
       'voiceme.bellActive',
-      ROUTINE_STORAGE_KEY,
     ])
       .then((entries) => {
         const map = Object.fromEntries(entries);
@@ -298,19 +236,8 @@ function CaregiverDashboard() {
         if (map['voiceme.parentName']?.trim()) setParentName(map['voiceme.parentName'].trim());
         if (map['voiceme.emergencyPhone']?.trim()) setEmergencyPhone(map['voiceme.emergencyPhone'].trim());
         if (map['voiceme.caregiverName']?.trim()) setCaregiverName(map['voiceme.caregiverName'].trim());
-        if (map['voiceme.allowCaregiverEdit'] !== undefined && map['voiceme.allowCaregiverEdit'] !== null) {
-          setAllowCaregiverEdit(map['voiceme.allowCaregiverEdit'] === 'true');
-        }
         if (map['voiceme.bellActive'] !== undefined) {
           setIsBellActive(map['voiceme.bellActive'] === 'true');
-        }
-        if (map[ROUTINE_STORAGE_KEY]) {
-          try {
-            const parsed = JSON.parse(map[ROUTINE_STORAGE_KEY]!);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setRoutines(parsed);
-            }
-          } catch {}
         }
       })
       .catch(() => {});
@@ -339,6 +266,17 @@ function CaregiverDashboard() {
       } catch {
         // Offline or backend unreachable: keep whatever is currently shown.
       }
+
+      // The routine belongs to the child and is set from the child's own
+      // account; the caregiver only gets a read-only view of it.
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/caregiver/routines/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.items)) setRoutines(data.items);
+      } catch {}
     })();
 
     // Only periodically poll the real-time Attention Bell alert status
@@ -359,28 +297,6 @@ function CaregiverDashboard() {
     } else {
       router.replace('/Homepage');
     }
-  };
-
-  const handleToggleRoutine = (id: string) => {
-    if (!allowCaregiverEdit) {
-      setDialogInfo({
-        visible: true,
-        titleNe: 'अनुमति छैन',
-        titleEn: 'Permission Restricted',
-        message: 'अभिभावकले दिनचर्या सम्पादन बन्द गर्नुभएको छ।\n(Routine editing is turned off in Parents settings)',
-      });
-      return;
-    }
-
-    try {
-      Haptics.selectionAsync();
-    } catch {}
-
-    const updated = routines.map((r) =>
-      r.id === id ? { ...r, completed: !r.completed } : r
-    );
-    setRoutines(updated);
-    AsyncStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
   };
 
   const handleAcknowledgeBell = async () => {
@@ -530,16 +446,6 @@ function CaregiverDashboard() {
           </Svg>
           <Text style={styles.backButtonText}>गृहपृष्ठ · Home</Text>
         </Pressable>
-
-        {/* Quick link to Parents Page */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open Parents Controls"
-          style={({ pressed }) => [styles.parentsLinkBtn, pressed && styles.pressedState]}
-          onPress={() => router.push('/Parentspage')}
-        >
-          <Text style={styles.parentsLinkText}>👨‍👩‍👧 अभिभावक सेटिङ ›</Text>
-        </Pressable>
       </View>
 
       <ScrollView
@@ -669,13 +575,6 @@ function CaregiverDashboard() {
               {completedCount} / {routines.length} पूरा भयो ({progressPercent}%)
             </Text>
           </View>
-
-          <Pressable
-            style={styles.fullRoutineBtn}
-            onPress={() => router.push('/Dailyroutinepage')}
-          >
-            <Text style={styles.fullRoutineBtnText}>पूरा तालिका ›</Text>
-          </Pressable>
         </View>
 
         {/* Progress Bar */}
@@ -683,20 +582,22 @@ function CaregiverDashboard() {
           <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
         </View>
 
-        {!allowCaregiverEdit && (
-          <View style={styles.lockedNotice}>
-            <Text style={styles.lockedNoticeText}>
-              🔒 दिनचर्या सम्पादन अभिभावकद्वारा सुरक्षित गरिएको छ (View only)
-            </Text>
-          </View>
-        )}
+        <View style={styles.lockedNotice}>
+          <Text style={styles.lockedNoticeText}>
+            🔒 दिनचर्या बच्चाको खाताबाट मात्र सेट गरिन्छ (View only — set from the child's account)
+          </Text>
+        </View>
 
         <View style={styles.taskCard}>
+          {routines.length === 0 && (
+            <View style={styles.taskItem}>
+              <Text style={styles.taskTime}>अझै कुनै दिनचर्या छैन (No routine set yet)</Text>
+            </View>
+          )}
           {routines.map((item, index) => (
-            <Pressable
+            <View
               key={item.id}
               style={[styles.taskItem, index > 0 && styles.taskItemBorder]}
-              onPress={() => handleToggleRoutine(item.id)}
             >
               <View style={[styles.taskCheckbox, item.completed && styles.taskCheckboxDone]}>
                 {item.completed && <Text style={styles.checkIcon}>✓</Text>}
@@ -706,14 +607,14 @@ function CaregiverDashboard() {
               </View>
               <View style={styles.taskInfo}>
                 <Text style={[styles.taskTitle, item.completed && styles.taskTitleDone]}>
-                  {item.nepaliTitle} ({item.englishTitle})
+                  {item.title}
                 </Text>
                 <Text style={styles.taskTime}>{item.time}</Text>
               </View>
               <Text style={[styles.statusTag, item.completed && styles.statusTagDone]}>
                 {item.completed ? 'पूरा भयो' : 'बाँकी'}
               </Text>
-            </Pressable>
+            </View>
           ))}
         </View>
 
@@ -817,19 +718,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#342419',
-  },
-  parentsLinkBtn: {
-    backgroundColor: '#EDE1D1',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#DAC9B8',
-  },
-  parentsLinkText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#4B2419',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -1099,17 +987,6 @@ const styles = StyleSheet.create({
     color: '#76675B',
     marginTop: 2,
     fontWeight: '600',
-  },
-  fullRoutineBtn: {
-    backgroundColor: '#E8DFD3',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-  },
-  fullRoutineBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#4A2A1A',
   },
   progressTrack: {
     height: 6,

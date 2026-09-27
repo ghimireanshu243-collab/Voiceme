@@ -50,12 +50,21 @@ export default function Parentspage() {
   const [speechRate, setSpeechRate] = useState<number>(0.95);
   const [geofenceEnabled, setGeofenceEnabled] = useState(true);
   const [bellPushNotification, setBellPushNotification] = useState(true);
-  const [allowCaregiverEdit, setAllowCaregiverEdit] = useState(true);
   const [isBellActive, setIsBellActive] = useState(false);
   const [routines, setRoutines] = useState<RoutineItem[]>(DEFAULT_ROUTINES);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [saveSuccessVisible, setSaveSuccessVisible] = useState(false);
+
+  // Parent settings belong to the child's own account; a caregiver who lands
+  // here (deep link, stale back stack) is sent back to their own dashboard.
+  useEffect(() => {
+    AsyncStorage.getItem('voiceme.selectedRole')
+      .then((role) => {
+        if (role === 'caregiver') router.replace('/Caregiverpage');
+      })
+      .catch(() => {});
+  }, []);
 
   // Load existing profile & daily routines from storage once on mount
   useEffect(() => {
@@ -70,7 +79,6 @@ export default function Parentspage() {
       'voiceme.speechRate',
       'voiceme.geofenceEnabled',
       'voiceme.bellPushNotification',
-      'voiceme.allowCaregiverEdit',
       'voiceme.bellActive',
       ROUTINE_STORAGE_KEY,
     ])
@@ -87,7 +95,6 @@ export default function Parentspage() {
           if (key === 'voiceme.speechRate') setSpeechRate(parseFloat(val) || 0.95);
           if (key === 'voiceme.geofenceEnabled') setGeofenceEnabled(val === 'true');
           if (key === 'voiceme.bellPushNotification') setBellPushNotification(val === 'true');
-          if (key === 'voiceme.allowCaregiverEdit') setAllowCaregiverEdit(val === 'true');
           if (key === 'voiceme.bellActive') setIsBellActive(val === 'true');
           if (key === ROUTINE_STORAGE_KEY) {
             try {
@@ -224,7 +231,6 @@ export default function Parentspage() {
         ['voiceme.speechRate', speechRate.toString()],
         ['voiceme.geofenceEnabled', geofenceEnabled.toString()],
         ['voiceme.bellPushNotification', bellPushNotification.toString()],
-        ['voiceme.allowCaregiverEdit', allowCaregiverEdit.toString()],
       ]);
     } catch {}
 
@@ -529,19 +535,6 @@ export default function Parentspage() {
             >
               <Text style={styles.caregiverCallText}>ड्यासबोर्ड ›</Text>
             </Pressable>
-          </View>
-
-          <View style={[styles.toggleRow, styles.toggleBorder]}>
-            <View style={styles.toggleTextContainer}>
-              <Text style={styles.toggleTitle}>दिनचर्या सम्पादन अनुमति (Edit Schedule)</Text>
-              <Text style={styles.toggleSub}>हेरचाहकर्तालाई कार्यहरू पूरा चिन्ह लगाउने अनुमति दिनुहोस्</Text>
-            </View>
-            <Switch
-              value={allowCaregiverEdit}
-              onValueChange={setAllowCaregiverEdit}
-              trackColor={{ false: '#D4C5B0', true: '#28552F' }}
-              thumbColor="#FFFFFF"
-            />
           </View>
         </View>
 

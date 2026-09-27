@@ -26,6 +26,25 @@ def _serialize_items(doc):
     return [_serialize_item(item) for item in sorted(items, key=lambda i: i.get('slot_index', 0))]
 
 
+def _is_caregiver_account(user_id):
+    """
+    Routines are set for the child only. A caregiver account (linked to a
+    child via the connect code, with no child profile of its own) supervises
+    the child's routine through caregiver_routines and must never create or
+    change routine entries under its own account.
+    """
+    if children_collection.find_one({'user_id': user_id}):
+        return False
+    return children_collection.find_one({'caregiver.user_id': user_id}) is not None
+
+
+def _caregiver_forbidden():
+    return Response(
+        {'error': "Routines are set from the child's account. Caregivers can only view them."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 @api_view(['GET', 'POST'])
 def routine_list(request):
     """
@@ -39,6 +58,9 @@ def routine_list(request):
     if request.method == 'GET':
         doc = apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
         return Response({'items': _serialize_items(doc)}, status=status.HTTP_200_OK)
+
+    if _is_caregiver_account(user_id):
+        return _caregiver_forbidden()
 
     # POST replaces the whole list — the child sets up their day as a set
     # rather than one entry at a time. Items are not capped in number here;
@@ -81,6 +103,9 @@ def toggle_routine_item(request, item_id):
     user_id = get_authenticated_user(request)
     if not user_id:
         return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if _is_caregiver_account(user_id):
+        return _caregiver_forbidden()
 
     doc = apply_daily_reset(routines_collection.find_one({'user_id': user_id}))
     if not doc:
