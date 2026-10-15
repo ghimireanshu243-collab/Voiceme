@@ -43,6 +43,7 @@ export default function Splashpage() {
       <StatusBar barStyle="light-content" backgroundColor="#C96F38" />
       <Pressable
         accessibilityLabel="Voice Me - Tap to enter"
+        accessibilityHint="Opens sign-in if you have used Voice Me before, or registration otherwise."
         accessibilityRole="button"
         onPress={handlePress}
         style={({ pressed }) => [styles.content, pressed && styles.pressedContent]}
