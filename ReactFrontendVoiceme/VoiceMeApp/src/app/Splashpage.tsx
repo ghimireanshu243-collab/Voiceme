@@ -54,7 +54,14 @@ export default function Splashpage() {
         </View>
 
         <View accessibilityLabel="Voice Me logo" style={styles.titleContainer}>
-          <Text style={styles.logoText}>Voice Me</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            numberOfLines={1}
+            style={styles.logoText}
+          >
+            Voice Me
+          </Text>
           <Text style={styles.nepaliTagline}>आवाज मेरो साथी</Text>
           <Text style={styles.tagline}>One tap opens Voice Me</Text>
         </View>
