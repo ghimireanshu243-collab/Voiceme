@@ -5,6 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LAST_EMAIL_KEY } from '@/constants/email';
 
 const AUTH_TOKEN_KEY = 'voiceme.authToken';
+const BRAND_BACKGROUND_COLOR = '#C96F38';
+const BRAND_TEXT_COLOR = '#FFF1E5';
+const BRAND_SOFT_TEXT_COLOR = '#FFE4CF';
 
 // Every app start asks for the password again (the email is pre-filled on
 // the Login screen); only a device that has never signed in goes to Register.
@@ -40,7 +43,7 @@ export default function Splashpage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#C96F38" />
+      <StatusBar barStyle="light-content" backgroundColor={BRAND_BACKGROUND_COLOR} />
       <Pressable
         accessibilityLabel="Voice Me - Tap to enter"
         accessibilityHint="Opens sign-in if you have used Voice Me before, or registration otherwise."
@@ -80,7 +83,7 @@ export default function Splashpage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#C96F38',
+    backgroundColor: BRAND_BACKGROUND_COLOR,
   },
   content: {
     flex: 1,
@@ -109,21 +112,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoText: {
-    color: '#FFF1E5',
+    color: BRAND_TEXT_COLOR,
     fontSize: 40,
     fontWeight: '900',
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   nepaliTagline: {
-    color: '#FFE4CF',
+    color: BRAND_SOFT_TEXT_COLOR,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
     marginTop: 8,
   },
   tagline: {
-    color: '#FFF1E5',
+    color: BRAND_TEXT_COLOR,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
     columnGap: 8,
   },
   tapPrompt: {
-    color: '#FFF1E5',
+    color: BRAND_TEXT_COLOR,
     fontSize: 14.5,
     fontWeight: '700',
     letterSpacing: 0.2,
