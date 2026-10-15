@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,13 +15,20 @@ async function goToNextScreen() {
 }
 
 export default function Splashpage() {
+  const hasNavigated = useRef(false);
+  const enterApp = () => {
+    if (hasNavigated.current) return;
+    hasNavigated.current = true;
+    void goToNextScreen();
+  };
+
   const handlePress = () => {
-    goToNextScreen();
+    enterApp();
   };
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      goToNextScreen();
+      enterApp();
     }, 2200);
 
     return () => clearTimeout(timer);
