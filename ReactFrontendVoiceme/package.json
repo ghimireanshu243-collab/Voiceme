@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "eslint-config-expo": "~57.0.2",
+    "expo": "^57.0.23",
+    "react-dom": "19.2.3",
+    "react-native-vector-icons": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
+  }
+}
