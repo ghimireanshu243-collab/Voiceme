@@ -129,6 +129,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   continueButton: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 241, 229, 0.2)',
