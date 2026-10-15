@@ -13,7 +13,11 @@ const BRAND_SOFT_TEXT_COLOR = '#FFE4CF';
 // the Login screen); only a device that has never signed in goes to Register.
 async function goToNextScreen() {
   const [[, authToken], [, lastEmail]] = await AsyncStorage.multiGet([AUTH_TOKEN_KEY, LAST_EMAIL_KEY]);
-  await AsyncStorage.removeItem(AUTH_TOKEN_KEY).catch(() => {});
+  try {
+    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch (error) {
+    console.warn('Unable to clear the saved auth token.', error);
+  }
   router.replace(authToken || lastEmail ? '/Loginpage' : '/Registerpage');
 }
 
