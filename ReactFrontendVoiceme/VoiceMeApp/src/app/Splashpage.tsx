@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LAST_EMAIL_KEY } from '@/constants/email';
@@ -28,7 +28,11 @@ export default function Splashpage() {
     if (hasNavigated.current) return;
     hasNavigated.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
-    void goToNextScreen();
+    void goToNextScreen().catch((error: unknown) => {
+      hasNavigated.current = false;
+      console.error('Unable to load the next screen.', error);
+      Alert.alert('Unable to continue', 'Please tap to try again.');
+    });
   }, []);
 
   const handlePress = () => {
